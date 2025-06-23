@@ -13,6 +13,7 @@ import os
 
 from pathlib import Path
 
+import numpy as np
 import xarray as xr
 
 import pandas as pd
@@ -55,7 +56,6 @@ def Get_file(url:str,icao:str,
     unwanted requests, if you test with the same file.'''
 
     print("Start to generate File")
-
     d_path = (icao
               + f'{year}' + '_'
               + f'{month:02d}' + '_'
@@ -70,9 +70,10 @@ def Get_file(url:str,icao:str,
               + '.txt')
     print(d_path)
 
-    a_path = Path(d_path)
+    p = Path.cwd() #Get the current directory
+    a_path = p.parents[1] / 'data' / d_path #use the parents_directory up to 1 and add the file-directory part
 
-    if os.path.exists(a_path) == False:
+    if os.path.exists(a_path) == False: #test if the ordered file still exists
         print("Try Connect to Ogimet.. This might take a while...")
         connect_to_url = request.urlopen(url)
         url_status = connect_to_url.code
@@ -284,6 +285,9 @@ day_f = 8
 hour_f = 9
 minute_f = 59
 
+
+
+
 url = Generate_request(flugplatz,stadt,automat,
                        year,month,day,hour,minute,
                        year_f,month_f,day_f,hour_f,minute_f
@@ -293,7 +297,6 @@ path = Get_file(url,flugplatz,
                 year,month,day,hour,minute,
                 year_f,month_f,day_f,hour_f,minute_f
                 )
-
 metar,taf = Gen_Metar_from_file(path)
 
 Parse_Metar(metar)
