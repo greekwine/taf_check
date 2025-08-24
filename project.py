@@ -17,6 +17,7 @@ import xarray as xr
 
 import pandas as pd
 
+#https://plotly.com/examples/
 
 def Generate_request(icao:str,name:str,auto:bool,
         year:int,month:int,day:int,hour:int,minute:int,
@@ -51,8 +52,8 @@ def Get_file(url:str,icao:str,
              year:int,month:int,day:int,hour:int,minute:int,
              year_f:int,month_f:int,day_f:int,hour_f:int,minute_f:int
     ) -> Path:
-    ''' This Function gets the requested METAR/TAF file in the txt-format from OGIMET and download it to reduce
-    unwanted requests, if you test with the same file.'''
+    ''' This Function gets the requested METAR/TAF file in the txt-format from OGIMET
+    and download it to reduce unwanted requests, if you test with the same file.'''
 
     print("Start to generate File")
 
@@ -124,7 +125,8 @@ def Gen_Metar_from_file(path:Path):
 
 def Parse_Metar(metar_list):
     # INITS
-    '''This function using the METAR list to get the weather observation, divide it into different parts.'''
+    '''This function using the METAR list to get the weather observation,
+    divide it into different parts like visibility, windspeed, direction etc....'''
     wind_unit = ['KT', 'MPS', 'KMH']
 
     wind_list = []
