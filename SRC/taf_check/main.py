@@ -20,6 +20,8 @@ import xarray as xr
 import pandas as pd
 
 
+# ToDO for better readability you could create a dataclass and this becomes the single
+#  parameter
 def Generate_request(icao:str,name:str,auto:bool,
         year:int,month:int,day:int,hour:int,minute:int,
         year_f:int,month_f:int,day_f:int,hour_f:int,minute_f:int
@@ -27,6 +29,7 @@ def Generate_request(icao:str,name:str,auto:bool,
 
         #Set conditions...
 
+        # ToDo I would set this as a constant at the top
         base_url = 'https://www.ogimet.com/display_metars2.php?'
         lang = 'en'    #Language
         tipo = 'ALL'
@@ -36,12 +39,15 @@ def Generate_request(icao:str,name:str,auto:bool,
         send = 'send'
 
         #Create URL
+        # ToDo try using formatted string only (with the {}) and not a mix between
+        #  addition and formatting
         url = (base_url+'lang='+lang+'&lugar='+icao
                +'&tipo='+tipo+'&ord='+ord+'&nil='+nil+'&fmt='+fmt
                +'&ano='+f'{year}'+'&mes='+f'{month:02d}'+'&day='+f'{day:02d}'+'&hora='+f'{hour:02d}'
                +'&anof='+f'{year_f}'+'&mesf='+f'{month_f:02d}'+'&dayf='+f'{day_f:02d}'
                +'&horaf='f'{hour_f:02d}'+'&minf='+f'{minute_f}'+'&send='+send)
 
+        # ToDo rm unused code
         #url_old = ('https://www.ogimet.com/display_metars2.php?lang=en&lugar=EDDw&tipo=ALL&ord=REV&nil=SI&fmt=txt'
         #       '&ano=2025&mes=04&day=15&hora=07&anof=2025&mesf=04&dayf=16&horaf=07&minf=59&send=send')
 
@@ -56,25 +62,21 @@ def Get_file(url:str,icao:str,
     ''' This Function gets the requested METAR/TAF file in the txt-format from OGIMET and download it to reduce
     unwanted requests, if you test with the same file.'''
 
+    # ToDo I would recommend logging instead of printing
     print("Start to generate File")
-    d_path = (icao
-              + f'{year}' + '_'
-              + f'{month:02d}' + '_'
-              + f'{day:02d}' + '_'
-              + f'{hour:02d}' + '_'
-              + f'{minute:02d}' + '_'
-              + f'{year_f}' + '_'
-              + f'{month_f:02d}' + '_'
-              + f'{day_f:02d}' + '_'
-              + f'{hour_f:02d}' + '_'
-              + f'{minute_f:02d}'
-              + '.txt')
+    # ToDo same here
+    d_path = (
+        f"{icao}{year}_{month:02d}_{day:02d}_{hour:02d}_{minute:02d}_{year_f}_"
+        f"{month_f:02d}_{day_f:02d}_{hour_f:02d}_{minute_f:02d}.txt"
+    )
+
     print(d_path)
 
     p = Path.cwd() #Get the current directory
-    a_path = p.parents[1] / 'data' / d_path #use the parents_directory up to 1 and add the file-directory part
+    a_path = p.parent / 'data' / d_path #use the parents_directory up to 1 and add the file-directory part
 
-    if os.path.exists(a_path) == False: #test if the ordered file still exists
+    # ToDo dont compare directly against bools
+    if not os.path.exists(a_path): #test if the ordered file still exists
         print("Try Connect to Ogimet.. This might take a while...")
         connect_to_url = request.urlopen(url)
         url_status = connect_to_url.code
@@ -98,6 +100,8 @@ def Gen_Metar_from_file(path:Path):
     continue_taf = False
 
     with open(path,'r') as afile:
+        # ToDo the indentation is a bit of (mix between 2, 4, and 6 spaces)
+        #  if you like you could try black as an code formatter
           for line in afile:
             if 'Time interval:' in line:
                 date_intervall = line
@@ -116,9 +120,11 @@ def Gen_Metar_from_file(path:Path):
             if 'TAF' in line and 'large' not in line and 'short' not in line:
                 taf_list.append(line)
                 continue_taf = True
-            elif continue_taf == True and '=' not in line:
+
+            # ToDo dont compare against bool
+            elif continue_taf and '=' not in line:
                 taf_list.append(line)
-            elif continue_taf == True and '=' in line:
+            elif continue_taf and '=' in line:
                 taf_list.append(line)
                 continue_taf = False
 
@@ -126,11 +132,29 @@ def Gen_Metar_from_file(path:Path):
 
 def vis_check(metar_obj,status_vis,status_vis_min,vis_idx,metar_auto):
     ''' This Function test whether the input is a Visibility or not'''
+    # ToDo metar_auto is unused?
+    # ToDo I find it hard to get the reason behind the filter. Consider writing some
+    #  context why you filter this way
 
-    vis = metar_obj.replace(' ','')
+    # ToDo This has a lot of nesting. I think is part is equivalent, and in my opinion
+    #  more readable - please check if that is in fact the same
+    vis = metar_obj.replace(' ', '')
+    if not (len(vis) == 4 and vis.isdigit()):
+        raise ValueError(f"Invalid visibility: {vis} is not a 4-digit number.")
+
+    if status_vis < 0:
+        return vis, vis_idx, status_vis_min, True
+
+    if status_vis_min < 0:
+        return vis, status_vis, vis_idx, True
+
+    raise ValueError("More than two visibilities found! Please check the input.")
+
+    # ToDo end of example
+    vis = metar_obj.replace(' ', '')
     found_vis = False
 
-    if len(vis) == 4 and vis.isdigit() == True:
+    if len(vis) == 4 and vis.isdigit():
         if status_vis < 0:
             result = vis
             status_vis = vis_idx
@@ -141,6 +165,8 @@ def vis_check(metar_obj,status_vis,status_vis_min,vis_idx,metar_auto):
                 status_vis_min = vis_idx
                 found_vis = True
             else:
+                # ToDo consider raising an error like ValueError if you want to
+                #  terminate the programm
                 print('An error occurred while checking Visibility. There are more than three Visibilities!'
                       'Please check the Input.')
                 result = '0'
@@ -347,6 +373,8 @@ def Parse_Metar(metar_list):
 
     i = 0
 
+    # ToDo the following lines are quite nested and hard to overview.
+    #  maybe you find a way ato simplify this and/or introduce small function for parts
     for metar in metar_list:
 
         # print(i,metar)
@@ -808,6 +836,10 @@ def Parse_Metar(metar_list):
     print(da_wind)
     print(da_wind_var)
 
+# ToDo write this in a main func and use the if __name__ == '__main__':
+#  condition. Otherwise this code is executed if you want to import it elsewhere
+#  for a single file it is totally fine, but if you want to scale it makes it easier to
+#  start that way
 date = datetime.now()
 date2 = datetime.now(timezone.utc)
 print(date.strftime('%a %d %b %Y %H:%M'))
