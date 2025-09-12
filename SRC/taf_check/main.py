@@ -831,10 +831,154 @@ def Parse_Metar(metar_list):
     print(len(trend_list))
     print(trend_list)
 
+
     da_wind = xr.DataArray(wind_list, coords=dict(date=date_list),name='windspeed and direction')
     da_wind_var = xr.DataArray(var_wind_list, coords=dict(date=date_list),name='windvariation')
-    print(da_wind)
-    print(da_wind_var)
+    da_vis = xr.DataArray(vis_list, coords=dict(date=date_list),name='visibility')
+    da_vis_min = xr.DataArray(vis_min_list, coords=dict(date=date_list),name='visibility min')
+    da_sig_weather_1 = xr.DataArray(sig_weather_list, coords=dict(date=date_list),name='significant weather')
+    da_sig_weather_2 = xr.DataArray(sig_weather_list_2, coords=dict(date=date_list),name='significant weather 2')
+    da_sig_weather_3 = xr.DataArray(sig_weather_list_3, coords=dict(date=date_list),name='significant weather 3')
+    da_cloud_1 = xr.DataArray(cloud_list_1, coords=dict(date=date_list),name='cloud level 1')
+    da_cloud_2 = xr.DataArray(cloud_list_2, coords=dict(date=date_list),name='cloud level 2')
+    da_cloud_3 = xr.DataArray(cloud_list_3, coords=dict(date=date_list),name='cloud level 3')
+    da_sig_cloud = xr.DataArray(special_cloud_list, coords=dict(date=date_list),name='significant cloud')
+    da_temperature = xr.DataArray(temperature_list, coords=dict(date=date_list),name='temperature')
+    da_dewpoint = xr.DataArray(dewpoint_list, coords=dict(date=date_list),name='dewpoint')
+    da_pressure = xr.DataArray(pressure_list, coords=dict(date=date_list),name='pressure')
+    da_trend = xr.DataArray(trend_list, coords=dict(date=date_list),name='trend')
+
+    ds_wind = da_wind.to_dataset(name='windspeed_direction')
+    ds_wind_var = da_wind_var.to_dataset(name='windvariation')
+    ds_vis = da_vis.to_dataset(name='visibility')
+    ds_vis_min = da_vis_min.to_dataset(name='visibility_min')
+    ds_sig_weather_1 = da_sig_weather_1.to_dataset(name='significant_weather')
+    ds_sig_weather_2 = da_sig_weather_2.to_dataset(name='significant_weather_2')
+    ds_sig_weather_3 = da_sig_weather_3.to_dataset(name='significant_weather_3')
+    ds_cloud_1 = da_cloud_1.to_dataset(name='cloud_level_1')
+    ds_cloud_2 = da_cloud_2.to_dataset(name='cloud_level_2')
+    ds_cloud_3 = da_cloud_3.to_dataset(name='cloud_level_3')
+    ds_sig_cloud = da_sig_cloud.to_dataset(name='significant_cloud')
+    ds_temperature = da_temperature.to_dataset(name='temperature')
+    ds_dewpoint = da_dewpoint.to_dataset(name='dewpoint')
+    ds_pressure = da_pressure.to_dataset(name='pressure')
+    ds_trend = da_trend.to_dataset(name='trend')
+
+    ds_all = ds_wind.merge(ds_wind_var)
+    ds_all = ds_all.merge(ds_vis)
+    ds_all = ds_all.merge(ds_vis_min)
+    ds_all = ds_all.merge(ds_sig_weather_1)
+    ds_all = ds_all.merge(ds_sig_weather_2)
+    ds_all = ds_all.merge(ds_sig_weather_3)
+    ds_all = ds_all.merge(ds_cloud_1)
+    ds_all = ds_all.merge(ds_cloud_2)
+    ds_all = ds_all.merge(ds_cloud_3)
+    ds_all = ds_all.merge(ds_sig_cloud)
+    ds_all = ds_all.merge(ds_temperature)
+    ds_all = ds_all.merge(ds_dewpoint)
+    ds_all = ds_all.merge(ds_pressure)
+    ds_all = ds_all.merge(ds_trend)
+
+    return ds_all
+
+def Parse_Taf(flugplatz, taf_list):
+
+    latest = 0
+
+    taf_base = True
+
+    taf_base_idx = -99
+    taf_forecast_idx = -99
+    taf_forecast_range_idx = -99
+    taf_wind_base_idx = -99
+    taf_cloud_base_idx = -99
+    taf_vis_base_idx = -99
+    taf_sig_weather_base_idx = -99
+
+
+    changing_groups = ['TEMPO','BECMG','FM']
+
+    wind_unit = ['KT', 'MPS', 'KMH']
+    pressure_unit = ['Q']
+    cloud_unit = ['BKN','OVC','SCT','FEW','NSC','SKC']
+    wx_unit = ['MI', 'BC', 'PR', 'DR', 'BL', 'SH', 'TS', 'FZ', 'DZ', 'RA', 'SN', 'SG'
+        , 'PL', 'GR', 'GS', 'UP', 'BR', 'FG', 'FU', 'VA', 'DU', 'SA', 'HZ', 'PO'
+        , 'SQ', 'FC', 'SS', 'DS', 'WS', 'IC', 'PY', 'VC', 'RE']
+
+    issued_time_list = []
+    forecast_range_list = []
+
+    base_wind_list = []
+    base_visibility_list = []
+    base_sig_weather_list = []
+    base_cloud_list = []
+
+    time_change = []
+    change_wind_list = []
+    change_vis_list = []
+    change_sig_weather_list = []
+    change_cloud_list = []
+
+    for taf in taf_list:
+
+        if '/n' in taf:
+            taf = taf.replace('/n','')
+
+        print(taf)
+        print('Analyse')
+
+        for idx in range(0,len(taf)):
+            if ' ' in taf[idx]:                         #Divide it into Parts
+                if len(taf[latest:idx])>1:              #Show only Parts with length >0 (filter artefacts)
+                    if flugplatz in taf[latest:idx]:    #If the ICAO part of the TAF -> Base
+                        taf_base = True
+                        taf_base_idx = idx
+
+                    if taf_base == True:
+                        if (taf_forecast_idx < 0
+                            and 'Z' in taf[latest:idx]
+                            and idx != taf_base_idx):
+
+                                issued_time_list.append(taf[latest:idx])
+                                taf_forecast_idx = idx
+
+                        if (taf_forecast_idx > 0
+                            and idx != taf_forecast_idx
+                            and taf_forecast_range_idx < 0):
+                            #Structure : ddhh/ddhh (FROM/TILL)
+                            if "/" in taf[latest:idx]:
+                                forecast_range_list.append(taf[latest:idx])
+                                taf_forecast_range_idx = idx
+
+                        if (taf_forecast_range_idx > 0
+                            and idx != taf_forecast_range_idx)\
+                            and taf_wind_base_idx < 0:
+                            #Structure dirffGfxKT (direction,strength,gusts,Unit)
+                                base_wind_list.append(taf[latest:idx])
+
+
+
+
+                    print(taf[latest:idx])
+                    latest = idx
+                else:
+                    latest = idx
+
+        print(taf[latest:idx])
+
+        taf_base_idx = -99
+        taf_forecast_idx = -99
+        taf_forecast_range_idx = -99
+
+        latest = 0
+    print(issued_time_list)
+    print(forecast_range_list)
+
+        #Structure : TAF LOCATIONID IUSSED DATE/TIMERANGE (!IMPORTANT) WIND VIS WEATHER CLOUDS
+        # (Groups with changing)
+        #print(taf)
+
+
 
 # ToDo write this in a main func and use the if __name__ == '__main__':
 #  condition. Otherwise this code is executed if you want to import it elsewhere
@@ -873,8 +1017,12 @@ path = Get_file(url,flugplatz,
                 )
 metar,taf = Gen_Metar_from_file(path)
 
-Parse_Metar(metar)
+#dataset = Parse_Metar(metar)
 
+#pre,ext = os.path.splitext(path)
+#dataset.to_netcdf(pre+'.nc')
+
+Parse_Taf(flugplatz,taf)
 
 # FX,FF,DD
 # DD > 60° wenn ff >= 5 KT
