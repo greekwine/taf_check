@@ -20,38 +20,33 @@ import xarray as xr
 import pandas as pd
 
 
+#Init
+base_url = 'https://www.ogimet.com/display_metars2.php?'
+lang = 'en'    #Language
+tipo = 'ALL'
+ord = 'REV'
+nil = 'SI'                             # INCLUDE NIL-Messages
+fmt = 'txt'                            # File-Format from OGIMET
+send = 'send'
+
+class Airport():
+    def __init__(self):
+        print('Airport')
+
 # ToDO for better readability you could create a dataclass and this becomes the single
 #  parameter
+
 def Generate_request(icao:str,name:str,auto:bool,
         year:int,month:int,day:int,hour:int,minute:int,
         year_f:int,month_f:int,day_f:int,hour_f:int,minute_f:int
     ) -> str:
 
-        #Set conditions...
+        '''This Function create the URL from given Parameter'''
 
-        # ToDo I would set this as a constant at the top
-        base_url = 'https://www.ogimet.com/display_metars2.php?'
-        lang = 'en'    #Language
-        tipo = 'ALL'
-        ord = 'REV'
-        nil = 'SI'                             # INCLUDE NIL-Messages
-        fmt = 'txt'                            # File-Format from OGIMET
-        send = 'send'
-
-        #Create URL
-        # ToDo try using formatted string only (with the {}) and not a mix between
-        #  addition and formatting
-        url = (base_url+'lang='+lang+'&lugar='+icao
-               +'&tipo='+tipo+'&ord='+ord+'&nil='+nil+'&fmt='+fmt
-               +'&ano='+f'{year}'+'&mes='+f'{month:02d}'+'&day='+f'{day:02d}'+'&hora='+f'{hour:02d}'
-               +'&anof='+f'{year_f}'+'&mesf='+f'{month_f:02d}'+'&dayf='+f'{day_f:02d}'
-               +'&horaf='f'{hour_f:02d}'+'&minf='+f'{minute_f}'+'&send='+send)
-
-        # ToDo rm unused code
-        #url_old = ('https://www.ogimet.com/display_metars2.php?lang=en&lugar=EDDw&tipo=ALL&ord=REV&nil=SI&fmt=txt'
-        #       '&ano=2025&mes=04&day=15&hora=07&anof=2025&mesf=04&dayf=16&horaf=07&minf=59&send=send')
-
-        #print(url_old)
+        url = (f'{base_url}lang={lang}&lugar={icao}&tipo={tipo}&ord={ord}&nil={nil}'
+               f'&fmt={fmt}&ano={year}&mes={month:02d}&day={day:02d}&hora={hour:02d}'
+               f'&anof={year_f}&mesf={month_f:02d}&dayf={day_f:02d}'
+               f'&horaf={hour_f:02d}&minf={minute_f}&send={send}')
 
         return url
 
@@ -59,8 +54,8 @@ def Get_file(url:str,icao:str,
              year:int,month:int,day:int,hour:int,minute:int,
              year_f:int,month_f:int,day_f:int,hour_f:int,minute_f:int
     ) -> Path:
-    ''' This Function gets the requested METAR/TAF file in the txt-format from OGIMET and download it to reduce
-    unwanted requests, if you test with the same file.'''
+    ''' This Function gets the requested METAR/TAF file in the txt-format from OGIMET
+    and download it to reduce unwanted requests, if you test with the same file.'''
 
     # ToDo I would recommend logging instead of printing
     print("Start to generate File")
@@ -73,7 +68,8 @@ def Get_file(url:str,icao:str,
     print(d_path)
 
     p = Path.cwd() #Get the current directory
-    a_path = p.parent / 'data' / d_path #use the parents_directory up to 1 and add the file-directory part
+    a_path = p.parent / 'data' / d_path
+    #use the parents_directory up to 1 and add the file-directory part
 
     # ToDo dont compare directly against bools
     if not os.path.exists(a_path): #test if the ordered file still exists
@@ -81,7 +77,8 @@ def Get_file(url:str,icao:str,
         connect_to_url = request.urlopen(url)
         url_status = connect_to_url.code
         if url_status == 200:
-            urllib.request.urlretrieve(url, a_path)  # This Command save the file into the folder...
+            urllib.request.urlretrieve(url, a_path)
+            # This Command save the file into the folder...
             print('Download finished!')
             return a_path
         else:
@@ -165,15 +162,14 @@ def vis_check(metar_obj,status_vis,status_vis_min,vis_idx,metar_auto):
                 status_vis_min = vis_idx
                 found_vis = True
             else:
-                # ToDo consider raising an error like ValueError if you want to
-                #  terminate the programm
-                print('An error occurred while checking Visibility. There are more than three Visibilities!'
+                print('An error occurred while checking Visibility. '
+                      'There are more than three Visibilities!'
                       'Please check the Input.')
                 result = '0'
     else:
         found_vis = False
         result = '0'
-        print('An error occurred while checking Visibility: '+vis+' is not a Visibility')
+        print(f'An error occurred while checking Visibility: {vis} is not a Visibility')
 
     return found_vis,result,status_vis,status_vis_min
 
@@ -189,8 +185,10 @@ def cloud_check(metar_obj,
                 cloud_list_3,
                 cloud_list_sig
                 ):
-    ''' This Function test whether the input is part of the Clouds or not. If it's a detected as a cloud the function
-    will add the cloud to the right list (level 1, level 2, level 3 and/or sig. cloud)'''
+    ''' This Function test whether the input is part of the Clouds or not.
+    If it's a detected as a cloud the function
+    will add the cloud to the right list (level 1, level 2, level 3 and/or sig. cloud)
+    '''
 
 
     cloud_unit = ['BKN', 'OVC', 'SCT', 'FEW', 'NSC', 'SKC', 'VV']
@@ -209,7 +207,8 @@ def cloud_check(metar_obj,
                         status_cloud_2 = cloud_idx
                         cloud_list_2.append(cloud)
                     else:
-                        if status_cloud_3 < 0 and cloud_idx != status_cloud_1 and cloud_idx != status_cloud_2:
+                        if status_cloud_3 < 0 and cloud_idx != status_cloud_1 \
+                                and cloud_idx != status_cloud_2:
                             status_cloud_3 = cloud_idx
                             cloud_list_3.append(cloud)
                         else:
@@ -221,7 +220,8 @@ def cloud_check(metar_obj,
                                 else:
                                     print('Oh here we go :)')
                             else:
-                                print('An error occurred while checking Clouds. There are more to many Clouds...'
+                                print('An error occurred while checking Clouds. '
+                                      'There are more to many Clouds...'
                                       'Please check the Input! ')
 
     if found_cloud == False:
@@ -248,8 +248,11 @@ def weather_check(metar_obj,
                   list_wx_3
                   ):
 
-    ''' This Function test whether the input is Part of WX or not. If it's a detected as a weather the function
-        will add the weather to the list (wx 1, wx 2 or wx 3).'''
+    '''
+    This Function test whether the input is Part of WX or not.
+    If it's a detected as a weather the function
+    will add the weather to the list (wx 1, wx 2 or wx 3).
+    '''
 
     cloud_unit = ['BKN', 'OVC', 'SCT', 'FEW', 'NSC', 'SKC']
 
@@ -271,15 +274,18 @@ def weather_check(metar_obj,
                         status_wx_2 = wx_idx
                         list_wx_2.append(weather)
                     else:
-                        if status_wx_3 < 0 and wx_idx != status_wx_2 and wx_idx != status_wx_1:
+                        if status_wx_3 < 0 and wx_idx != status_wx_2 and \
+                                wx_idx != status_wx_1:
                             status_wx_3 = wx_idx
                             list_wx_3.append(weather)
                         else:
-                            print('An error occurred while checking weathers. There are more then three weathers '
+                            print('An error occurred while checking weathers.'
+                                  ' There are more then three weathers '
                                   'detected. Check input file!')
             else:
                 if weather in cloud_unit:
-                    print('Error: This Weather is a Cloud. Check if clouds are all detected. '+weather)
+                    print('Error: This Weather is a Cloud. '
+                          'Check if clouds are all detected. '+weather)
 
     if found_wx == False:
         print('There is a Problem '+ weather + ' is not a Weather...')
@@ -294,8 +300,11 @@ def weather_check(metar_obj,
 
 def temp_tau_check(metar_obj,temp_status,temp_list,dew_point_list,temp_idx):
 
-    ''' This Function checks if there is any Temperature or Dewpoint values and if the are some values, it will add to
-    the temperature and dewpoint list'''
+    '''
+    This Function checks if there is any Temperature or Dewpoint values
+    and if the are some values, it will add to
+    the temperature and dewpoint list
+    '''
 
     #Struture : 00/00 or M01/M07
     temp_tau = metar_obj.replace(' ','')
@@ -320,8 +329,11 @@ def temp_tau_check(metar_obj,temp_status,temp_list,dew_point_list,temp_idx):
 def Parse_Metar(metar_list):
     # INITS
 
-    '''This function using the METAR list to get the weather observation, divide it into different parts and save the
-    parts into a file. This contains all the Metar-Information'''
+    '''
+    This function using the METAR list to get the weather observation,
+    divide it into different parts and save the
+    parts into a file. This contains all the Metar-Information
+    '''
 
     wind_unit = ['KT', 'MPS', 'KMH']
     pressure_unit = ['Q']
@@ -391,16 +403,19 @@ def Parse_Metar(metar_list):
         #print(metar)
 
         if 'AUTO' in metar:
-            #Automatic Stations can't observe everything, often the structure differs compared to human generated
+            #Automatic Stations can't observe everything,
+            # often the structure differs compared to human generated
             # - Parser need to be adjust
             auto_mode = True
         for unit in wind_unit:
-            #Some Nations use different windspeed-units. We use the shortcuts to find the wind parameter
+            #Some Nations use different windspeed-units.
+            # We use the shortcuts to find the wind parameter
             if unit in metar:
                 wind_mode = unit
                 break
         if 'CAVOK' in metar:
-            #"CAVOK is special, cause Visibility, Cloudiness, Weather are described by this word and the structure of
+            #"CAVOK is special, cause Visibility, Cloudiness,
+            # Weather are described by this word and the structure of
             # the Metar differs by using from typical structures.
             cavok_mode = True
 
@@ -424,7 +439,8 @@ def Parse_Metar(metar_list):
                     got_wind = idx
 
                     if 'V' in metar[got_wind:got_wind+5]:
-                        if 'CAVOK' in metar[got_wind:got_wind + 6] or 'VV' in metar[got_wind:got_wind + 6]:
+                        if 'CAVOK' in metar[got_wind:got_wind + 6] or \
+                                'VV' in metar[got_wind:got_wind + 6]:
                             var_wind_list.append('-99V-99')
                             got_wind_var = idx
                         else:
@@ -435,7 +451,8 @@ def Parse_Metar(metar_list):
                         got_wind_var = idx
 
                 if cavok_mode == True:
-                    #CAVOK means no clouds, Vis over 10km, No Weather and no special clouds...
+                    #CAVOK means no clouds, Vis over 10km,
+                    # No Weather and no special clouds...
                     if (got_wind>0
                         and got_vis<0
                         and idx != got_wind_var
@@ -984,6 +1001,7 @@ def Parse_Taf(flugplatz, taf_list):
 #  condition. Otherwise this code is executed if you want to import it elsewhere
 #  for a single file it is totally fine, but if you want to scale it makes it easier to
 #  start that way
+
 date = datetime.now()
 date2 = datetime.now(timezone.utc)
 print(date.strftime('%a %d %b %Y %H:%M'))
@@ -1011,19 +1029,22 @@ url = Generate_request(flugplatz,stadt,automat,
                        year_f,month_f,day_f,hour_f,minute_f
                        )
 
-path = Get_file(url,flugplatz,
-                year,month,day,hour,minute,
-                year_f,month_f,day_f,hour_f,minute_f
-                )
-metar,taf = Gen_Metar_from_file(path)
+#path = Get_file(url,flugplatz,
+#                year,month,day,hour,minute,
+#                year_f,month_f,day_f,hour_f,minute_f
+#                )
+
+#metar,taf = Gen_Metar_from_file(path)
 
 #dataset = Parse_Metar(metar)
 
 #pre,ext = os.path.splitext(path)
 #dataset.to_netcdf(pre+'.nc')
 
-Parse_Taf(flugplatz,taf)
+#Parse_Taf(flugplatz,taf)
 
+
+######################
 # FX,FF,DD
 # DD > 60° wenn ff >= 5 KT
 # FF >= 5 KT
