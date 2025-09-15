@@ -68,7 +68,7 @@ def Get_file(url:str,icao:str,
     print(d_path)
 
     p = Path.cwd() #Get the current directory
-    a_path = p.parent / 'data' / d_path
+    a_path = p.parents[1] / 'data' / d_path
     #use the parents_directory up to 1 and add the file-directory part
 
     # ToDo dont compare directly against bools
@@ -133,21 +133,7 @@ def vis_check(metar_obj,status_vis,status_vis_min,vis_idx,metar_auto):
     # ToDo I find it hard to get the reason behind the filter. Consider writing some
     #  context why you filter this way
 
-    # ToDo This has a lot of nesting. I think is part is equivalent, and in my opinion
-    #  more readable - please check if that is in fact the same
-    vis = metar_obj.replace(' ', '')
-    if not (len(vis) == 4 and vis.isdigit()):
-        raise ValueError(f"Invalid visibility: {vis} is not a 4-digit number.")
 
-    if status_vis < 0:
-        return vis, vis_idx, status_vis_min, True
-
-    if status_vis_min < 0:
-        return vis, status_vis, vis_idx, True
-
-    raise ValueError("More than two visibilities found! Please check the input.")
-
-    # ToDo end of example
     vis = metar_obj.replace(' ', '')
     found_vis = False
 
@@ -1029,19 +1015,19 @@ url = Generate_request(flugplatz,stadt,automat,
                        year_f,month_f,day_f,hour_f,minute_f
                        )
 
-#path = Get_file(url,flugplatz,
-#                year,month,day,hour,minute,
-#                year_f,month_f,day_f,hour_f,minute_f
-#                )
+path = Get_file(url,flugplatz,
+                year,month,day,hour,minute,
+                year_f,month_f,day_f,hour_f,minute_f
+                )
 
-#metar,taf = Gen_Metar_from_file(path)
+metar,taf = Gen_Metar_from_file(path)
 
-#dataset = Parse_Metar(metar)
+dataset = Parse_Metar(metar)
 
-#pre,ext = os.path.splitext(path)
-#dataset.to_netcdf(pre+'.nc')
+pre,ext = os.path.splitext(path)
+dataset.to_netcdf(pre+'.nc')
 
-#Parse_Taf(flugplatz,taf)
+Parse_Taf(flugplatz,taf)
 
 
 ######################
