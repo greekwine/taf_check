@@ -1064,7 +1064,6 @@ def parse_taf(id, taf_list):
         taf_change_time_idx = -99
         taf_change_type_idx = -99
 
-
         latest = 0
 
     print(len(change_type_list))
