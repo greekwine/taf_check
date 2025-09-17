@@ -110,7 +110,7 @@ def gen_Metar_from_file(path:Path):
     with open(path,'r') as afile:
         # ToDo the indentation is a bit of (mix between 2, 4, and 6 spaces)
         #  if you like you could try black as an code formatter
-          for line in afile:
+        for line in afile:
             if 'Time interval:' in line:
                 date_intervall = line
             if 'Latitude:' in line:
@@ -128,8 +128,6 @@ def gen_Metar_from_file(path:Path):
             if 'TAF' in line and 'large' not in line and 'short' not in line:
                 taf_list.append(line)
                 continue_taf = True
-
-            # ToDo dont compare against bool
             elif continue_taf and '=' not in line:
                 taf_list.append(line)
             elif continue_taf and '=' in line:
@@ -916,7 +914,7 @@ def parse_Metar(metar_list):
 
     return ds_all
 
-def parse_taf(flugplatz, taf_list):
+def parse_taf(id, taf_list):
 
     latest = 0
 
@@ -929,6 +927,14 @@ def parse_taf(flugplatz, taf_list):
     taf_cloud_base_idx = -99
     taf_vis_base_idx = -99
     taf_sig_weather_base_idx = -99
+
+    taf_change_type_idx = -99
+    taf_change_time_idx = -99
+    taf_cloud_change_type_idx = -99
+    taf_wind_change_type_idx = -99
+    taf_vis_change_type_idx = -99
+    taf_sig_weather_change_type_idx = -99
+
 
 
     changing_groups = ['TEMPO','BECMG','FM']
@@ -948,7 +954,8 @@ def parse_taf(flugplatz, taf_list):
     base_sig_weather_list = []
     base_cloud_list = []
 
-    time_change = []
+    change_time_list = []
+    change_type_list = []
     change_wind_list = []
     change_vis_list = []
     change_sig_weather_list = []
@@ -968,10 +975,12 @@ def parse_taf(flugplatz, taf_list):
                 # Show only Parts with length >0 (filter artefacts)
                 if len(taf[latest:idx])>1:
                     # If the ICAO part of the TAF -> Base
-                    if flugplatz in taf[latest:idx]:
+                    if id in taf[latest:idx]:
                         taf_base = True
                         taf_base_idx = idx
-
+                    for change in changing_groups:
+                        if change in taf[latest:idx]:
+                            taf_base = False
                     if taf_base:
                         if (taf_forecast_idx < 0
                             and 'Z' in taf[latest:idx]
@@ -993,21 +1002,75 @@ def parse_taf(flugplatz, taf_list):
                             and taf_wind_base_idx < 0:
                             #Structure dirffGfxKT (direction,strength,gusts,Unit)
                                 base_wind_list.append(taf[latest:idx])
+                                taf_wind_base_idx = idx
 
-                    print(taf[latest:idx])
+                        if (taf_wind_base_idx > 0
+                            and idx != taf_wind_base_idx
+                            and taf_sig_weather_base_idx < 0):
+                                if taf[latest:idx] in wx_unit:
+                                    base_sig_weather_list.append(taf[latest:idx])
+                                    taf_sig_weather_base_idx = idx
+                                else:
+                                    if taf_vis_base_idx < 0:
+                                        base_visibility_list.append(taf[latest:idx])
+                                        taf_vis_base_idx = idx
+                                    elif (taf_cloud_base_idx < 0
+                                          and taf[latest:idx] in cloud_unit):
+                                        base_cloud_list.append(taf[latest:idx])
+                                        taf_cloud_base_idx = idx
+
+                        if taf_sig_weather_base_idx < 0 and taf_vis_base_idx > 0:
+                            base_sig_weather_list.append('NO WX')
+                            taf_sig_weather_base_idx = idx
+
+                        #if taf_sig_weather_base_idx > 0 and taf_cloud_base_idx > 0:
+                        #    print(taf[latest:idx])
+                    else:
+                        if taf_change_type_idx < 0 :
+                            for change in changing_groups:
+                                if change in taf[latest:idx]:
+                                    change_type_list.append(taf[latest:idx])
+                                    taf_change_type_idx = idx
+                        elif taf_change_time_idx < 0 and taf_change_type_idx > 0 :
+                            change_time_list.append(taf[latest:idx])
+                            taf_change_time_idx = idx
+                        print(taf[latest:idx])
+
                     latest = idx
                 else:
                     latest = idx
 
-        print(taf[latest:idx])
+        if taf_base and 'CAVOK' in taf[latest:idx]:
+            base_visibility_list.append(taf[latest:idx])
+            base_cloud_list.append(taf[latest:idx])
+            base_sig_weather_list.append(taf[latest:idx])
+            taf_vis_base_idx = idx
+            taf_cloud_base_idx = idx
+            taf_sig_weather_base_idx = idx
+        else:
+            for cloud in cloud_unit:
+                if taf_base and cloud in taf[latest:idx]:
+                    base_cloud_list.append(taf[latest:idx])
+                    taf_cloud_base_idx = idx
 
         taf_base_idx = -99
         taf_forecast_idx = -99
         taf_forecast_range_idx = -99
+        taf_wind_base_idx = -99
+        taf_vis_base_idx = -99
+        taf_sig_weather_base_idx = -99
+        taf_cloud_base_idx = -99
+
+        taf_change_time_idx = -99
+        taf_change_type_idx = -99
+
 
         latest = 0
-    print(issued_time_list)
-    print(forecast_range_list)
+
+    print(len(change_type_list))
+    print(change_type_list)
+    print(len(change_time_list))
+    print(change_time_list)
 
         #Structure : TAF LOCATIONID IUSSED DATE/TIMERANGE (!IMPORTANT) WIND VIS WEATHER CLOUDS
         # (Groups with changing)
