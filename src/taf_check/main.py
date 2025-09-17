@@ -1072,6 +1072,7 @@ def parse_taf(id, taf_list):
     print(len(change_time_list))
     print(change_time_list)
 
+
         #Structure : TAF LOCATIONID IUSSED DATE/TIMERANGE (!IMPORTANT) WIND VIS WEATHER CLOUDS
         # (Groups with changing)
         #print(taf)
