@@ -48,8 +48,7 @@ class Airport():
 
 
 
-def generate_request(icao:str,name:str,auto:bool,
-        year:int,month:int,day:int,hour:int,minute:int,
+def generate_request(icao:str,year:int,month:int,day:int,hour:int,minute:int,
         year_f:int,month_f:int,day_f:int,hour_f:int,minute_f:int
     ) -> str:
 
@@ -1697,9 +1696,7 @@ if __name__ == '__main__':
     print(date.strftime('%a %d %b %Y %H:%M'))
     print(date2.strftime('%a %d %b %Y %H:%M'))
 
-    flugplatz = 'EDDW'
-    stadt = 'Bremen'
-    automat = True
+    airport_id = 'EDDW'
 
     year = 2025
     month = 6
@@ -1713,12 +1710,11 @@ if __name__ == '__main__':
     hour_f = 9
     minute_f = 59
 
-    url = generate_request(flugplatz,stadt,automat,
-                           year,month,day,hour,minute,
+    url = generate_request(airport_id,year,month,day,hour,minute,
                            year_f,month_f,day_f,hour_f,minute_f
                            )
 
-    path = get_file(url,flugplatz,
+    path = get_file(url,airport_id,
                     year,month,day,hour,minute,
                     year_f,month_f,day_f,hour_f,minute_f
                     )
@@ -1730,7 +1726,7 @@ if __name__ == '__main__':
     pre,ext = os.path.splitext(path)
     dataset.to_netcdf(pre+'.nc')
 
-    parse_taf(flugplatz,taf)
+    parse_taf(airport_id,taf)
 
 
 ######################
