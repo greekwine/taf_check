@@ -1,12 +1,12 @@
-''' This Project will be amazing more or less from the greek wine group
+"""
+This Project is under Development from the GreekWine-Group
 
 Using Ogimet to get a METAR/TAF
 and check for correct METAR & TAF using DWD-Guidelines (btw use .txt-file) ??
-Finish this until August '''
+Finish this until the September Ends
+"""
 
-from datetime import datetime, date, time, timezone
-import datetime as dt
-from unittest import result
+from datetime import datetime, timezone
 
 from urllib import request
 import urllib.request
@@ -14,57 +14,62 @@ import os
 
 from pathlib import Path
 
-import numpy as np
 import xarray as xr
 
-import pandas as pd
+import logging
 
+
+#Init
+# Configure the logging settings
+logging.basicConfig(
+    filename='latest.log',  # Name of the log file
+    level=logging.DEBUG,    # Set the logging level
+                            # (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format='%(asctime)s - %(levelname)s - %(message)s'  # Log message format
+)
+
+
+base_url = 'https://www.ogimet.com/display_metars2.php?'
+lang = 'en'    #Language
+tipo = 'ALL'
+ord_in = 'REV'
+nil = 'SI'                             # INCLUDE NIL-Messages
+fmt = 'txt'                            # File-Format from OGIMET
+send = 'send'
+
+
+class Airport():
+    def __init__(self):
+        print('Airport')
 
 # ToDO for better readability you could create a dataclass and this becomes the single
 #  parameter
-def Generate_request(icao:str,name:str,auto:bool,
+
+
+
+
+def generate_request(icao:str,name:str,auto:bool,
         year:int,month:int,day:int,hour:int,minute:int,
         year_f:int,month_f:int,day_f:int,hour_f:int,minute_f:int
     ) -> str:
 
-        #Set conditions...
+        """This Function create the URL from given Parameter"""
 
-        # ToDo I would set this as a constant at the top
-        base_url = 'https://www.ogimet.com/display_metars2.php?'
-        lang = 'en'    #Language
-        tipo = 'ALL'
-        ord = 'REV'
-        nil = 'SI'                             # INCLUDE NIL-Messages
-        fmt = 'txt'                            # File-Format from OGIMET
-        send = 'send'
-
-        #Create URL
-        # ToDo try using formatted string only (with the {}) and not a mix between
-        #  addition and formatting
-        url = (base_url+'lang='+lang+'&lugar='+icao
-               +'&tipo='+tipo+'&ord='+ord+'&nil='+nil+'&fmt='+fmt
-               +'&ano='+f'{year}'+'&mes='+f'{month:02d}'+'&day='+f'{day:02d}'+'&hora='+f'{hour:02d}'
-               +'&anof='+f'{year_f}'+'&mesf='+f'{month_f:02d}'+'&dayf='+f'{day_f:02d}'
-               +'&horaf='f'{hour_f:02d}'+'&minf='+f'{minute_f}'+'&send='+send)
-
-        # ToDo rm unused code
-        #url_old = ('https://www.ogimet.com/display_metars2.php?lang=en&lugar=EDDw&tipo=ALL&ord=REV&nil=SI&fmt=txt'
-        #       '&ano=2025&mes=04&day=15&hora=07&anof=2025&mesf=04&dayf=16&horaf=07&minf=59&send=send')
-
-        #print(url_old)
+        url = (f'{base_url}lang={lang}&lugar={icao}&tipo={tipo}&ord={ord_in}&nil={nil}'
+               f'&fmt={fmt}&ano={year}&mes={month:02d}&day={day:02d}&hora={hour:02d}'
+               f'&anof={year_f}&mesf={month_f:02d}&dayf={day_f:02d}'
+               f'&horaf={hour_f:02d}&minf={minute_f}&send={send}')
 
         return url
 
-def Get_file(url:str,icao:str,
+def get_file(url:str,icao:str,
              year:int,month:int,day:int,hour:int,minute:int,
              year_f:int,month_f:int,day_f:int,hour_f:int,minute_f:int
     ) -> Path:
-    ''' This Function gets the requested METAR/TAF file in the txt-format from OGIMET and download it to reduce
-    unwanted requests, if you test with the same file.'''
+    """ This Function gets the requested METAR/TAF file in the txt-format from OGIMET
+    and download it to reduce unwanted requests, if you test with the same file."""
 
-    # ToDo I would recommend logging instead of printing
-    print("Start to generate File")
-    # ToDo same here
+    logging.info("Start to generate File")
     d_path = (
         f"{icao}{year}_{month:02d}_{day:02d}_{hour:02d}_{minute:02d}_{year_f}_"
         f"{month_f:02d}_{day_f:02d}_{hour_f:02d}_{minute_f:02d}.txt"
@@ -73,15 +78,16 @@ def Get_file(url:str,icao:str,
     print(d_path)
 
     p = Path.cwd() #Get the current directory
-    a_path = p.parent / 'data' / d_path #use the parents_directory up to 1 and add the file-directory part
+    a_path = p.parents[1] / 'data' / d_path
+    #use the parents_directory up to 1 and add the file-directory part
 
-    # ToDo dont compare directly against bools
     if not os.path.exists(a_path): #test if the ordered file still exists
         print("Try Connect to Ogimet.. This might take a while...")
         connect_to_url = request.urlopen(url)
         url_status = connect_to_url.code
         if url_status == 200:
-            urllib.request.urlretrieve(url, a_path)  # This Command save the file into the folder...
+            urllib.request.urlretrieve(url, a_path)
+            # This Command save the file into the folder...
             print('Download finished!')
             return a_path
         else:
@@ -92,9 +98,9 @@ def Get_file(url:str,icao:str,
         print('File already exists! No new File was generated!')
         return a_path
 
-def Gen_Metar_from_file(path:Path):
-    ''' This Function will generate the METAR & TAF
-    from the OGIMET-File and return a METAR-LIST and TAF-LIST '''
+def gen_metar_from_file(path:Path) -> tuple[list[str],list[str]]:
+    """ This Function will generate the METAR & TAF
+    from the OGIMET-File and return a METAR-LIST and TAF-LIST """
     metar_list = []
     taf_list = []
     continue_taf = False
@@ -102,7 +108,7 @@ def Gen_Metar_from_file(path:Path):
     with open(path,'r') as afile:
         # ToDo the indentation is a bit of (mix between 2, 4, and 6 spaces)
         #  if you like you could try black as an code formatter
-          for line in afile:
+        for line in afile:
             if 'Time interval:' in line:
                 date_intervall = line
             if 'Latitude:' in line:
@@ -120,8 +126,6 @@ def Gen_Metar_from_file(path:Path):
             if 'TAF' in line and 'large' not in line and 'short' not in line:
                 taf_list.append(line)
                 continue_taf = True
-
-            # ToDo dont compare against bool
             elif continue_taf and '=' not in line:
                 taf_list.append(line)
             elif continue_taf and '=' in line:
@@ -130,27 +134,18 @@ def Gen_Metar_from_file(path:Path):
 
     return metar_list, taf_list
 
-def vis_check(metar_obj,status_vis,status_vis_min,vis_idx,metar_auto):
-    ''' This Function test whether the input is a Visibility or not'''
-    # ToDo metar_auto is unused?
-    # ToDo I find it hard to get the reason behind the filter. Consider writing some
-    #  context why you filter this way
+def vis_check(metar_obj:str,status_vis:int,status_vis_min:int,
+              vis_idx:int,metar_auto:bool,) -> tuple[bool,str,int,int]:
+    """
+    This Function test, whether the input is a Visibility or not and return it back.
+    Typical Format is 9999 or 9999 3500 with automated observer.
+    Manual Observer are allowed to use 9999 3500SE to give information about
+    minimum visibility near/partly observed at the airport
+    """
 
-    # ToDo This has a lot of nesting. I think is part is equivalent, and in my opinion
-    #  more readable - please check if that is in fact the same
-    vis = metar_obj.replace(' ', '')
-    if not (len(vis) == 4 and vis.isdigit()):
-        raise ValueError(f"Invalid visibility: {vis} is not a 4-digit number.")
 
-    if status_vis < 0:
-        return vis, vis_idx, status_vis_min, True
+    dir = ['N','NE','E','SE','S','SW','W','NW']
 
-    if status_vis_min < 0:
-        return vis, status_vis, vis_idx, True
-
-    raise ValueError("More than two visibilities found! Please check the input.")
-
-    # ToDo end of example
     vis = metar_obj.replace(' ', '')
     found_vis = False
 
@@ -165,39 +160,48 @@ def vis_check(metar_obj,status_vis,status_vis_min,vis_idx,metar_auto):
                 status_vis_min = vis_idx
                 found_vis = True
             else:
-                # ToDo consider raising an error like ValueError if you want to
-                #  terminate the programm
-                print('An error occurred while checking Visibility. There are more than three Visibilities!'
+                logging.error('An error occurred while checking Visibility. '
+                      'There are more than three Visibilities!'
                       'Please check the Input.')
                 result = '0'
     else:
-        found_vis = False
-        result = '0'
-        print('An error occurred while checking Visibility: '+vis+' is not a Visibility')
+        if metar_auto == True:
+            found_vis = False
+            result = '0'
+            logging.warning(f'An error occurred while checking Visibility: '
+                            f'{vis} is not a Visibility')
+        else:
+            if len(vis) == 6 and vis in dir and status_vis_min < 0:
+                result = vis
+                status_vis_min = vis_idx
+                found_vis = True
 
     return found_vis,result,status_vis,status_vis_min
 
-def cloud_check(metar_obj,
-                status_cloud_1,
-                status_cloud_2,
-                status_cloud_3,
-                status_sig_cloud,
-                cloud_idx,
-                auto_mode,
-                cloud_list_1,
-                cloud_list_2,
-                cloud_list_3,
-                cloud_list_sig
-                ):
-    ''' This Function test whether the input is part of the Clouds or not. If it's a detected as a cloud the function
-    will add the cloud to the right list (level 1, level 2, level 3 and/or sig. cloud)'''
+def cloud_check(metar_obj:str,
+                status_cloud_1:int,
+                status_cloud_2:int,
+                status_cloud_3:int,
+                status_sig_cloud:int,
+                cloud_idx:int,
+                auto_mode:bool,
+                cloud_list_1:list,
+                cloud_list_2:list,
+                cloud_list_3:list,
+                cloud_list_sig:list
+                )-> tuple[bool,int,int,int,int,list[str],list[str],list[str],list[str]]:
+    """
+    This Function test whether the input is part of the Clouds or not.
+    If it's a detected as a cloud the function
+    will add the cloud to the right list (level 1, level 2, level 3 and/or sig. cloud)
+    """
 
 
     cloud_unit = ['BKN', 'OVC', 'SCT', 'FEW', 'NSC', 'SKC', 'VV']
     cloud = metar_obj
     found_cloud = False
 
-    if auto_mode == True:
+    if auto_mode:
         for cloudcover in cloud_unit:
             if cloudcover in cloud:
                 found_cloud = True
@@ -209,7 +213,8 @@ def cloud_check(metar_obj,
                         status_cloud_2 = cloud_idx
                         cloud_list_2.append(cloud)
                     else:
-                        if status_cloud_3 < 0 and cloud_idx != status_cloud_1 and cloud_idx != status_cloud_2:
+                        if status_cloud_3 < 0 and cloud_idx != status_cloud_1 \
+                                and cloud_idx != status_cloud_2:
                             status_cloud_3 = cloud_idx
                             cloud_list_3.append(cloud)
                         else:
@@ -219,13 +224,15 @@ def cloud_check(metar_obj,
                                     status_sig_cloud = cloud_idx
                                     cloud_list_sig.append(cloud)
                                 else:
-                                    print('Oh here we go :)')
+                                    logging.error('An error occurred while '
+                                                  'checking Cloudcover. ')
                             else:
-                                print('An error occurred while checking Clouds. There are more to many Clouds...'
+                                logging.error('An error occurred while checking Clouds. '
+                                      'There are more to many Clouds...'
                                       'Please check the Input! ')
 
-    if found_cloud == False:
-        print('There is a Problem '+ cloud + ' is not a cloud...')
+    if not found_cloud:
+        logging.warning(f'{cloud} is not a cloud.')
 
     return (found_cloud,
             status_cloud_1,
@@ -237,19 +244,22 @@ def cloud_check(metar_obj,
             cloud_list_3,
             cloud_list_sig)
 
-def weather_check(metar_obj,
-                  status_wx_1,
-                  status_wx_2,
-                  status_wx_3,
-                  wx_idx,
-                  auto_mode,
-                  list_wx_1,
-                  list_wx_2,
-                  list_wx_3
-                  ):
+def weather_check(metar_obj:str,
+                  status_wx_1:int,
+                  status_wx_2:int,
+                  status_wx_3:int,
+                  wx_idx:int,
+                  auto_mode:bool,
+                  list_wx_1:list,
+                  list_wx_2:list,
+                  list_wx_3:list
+                  ) -> tuple[bool,list[str],list[str],list[str],int,int,int]:
 
-    ''' This Function test whether the input is Part of WX or not. If it's a detected as a weather the function
-        will add the weather to the list (wx 1, wx 2 or wx 3).'''
+    """
+    This Function test whether the input is Part of WX or not.
+    If it's a detected as a weather the function
+    will add the weather to the list (wx 1, wx 2 or wx 3).
+    """
 
     cloud_unit = ['BKN', 'OVC', 'SCT', 'FEW', 'NSC', 'SKC']
 
@@ -259,7 +269,8 @@ def weather_check(metar_obj,
 
     found_wx = False
     weather = metar_obj
-    if auto_mode == True or auto_mode == False:
+
+    if not auto_mode or auto_mode:
         for wx in wx_unit:
             if wx in weather and wx not in cloud_unit:
                 found_wx = True
@@ -271,18 +282,21 @@ def weather_check(metar_obj,
                         status_wx_2 = wx_idx
                         list_wx_2.append(weather)
                     else:
-                        if status_wx_3 < 0 and wx_idx != status_wx_2 and wx_idx != status_wx_1:
+                        if status_wx_3 < 0 and wx_idx != status_wx_2 and \
+                                wx_idx != status_wx_1:
                             status_wx_3 = wx_idx
                             list_wx_3.append(weather)
                         else:
-                            print('An error occurred while checking weathers. There are more then three weathers '
+                            logging.error('An error occurred while checking weathers.'
+                                  ' There are more then three weathers '
                                   'detected. Check input file!')
             else:
                 if weather in cloud_unit:
-                    print('Error: This Weather is a Cloud. Check if clouds are all detected. '+weather)
+                    logging.error(f'This Weather is a Cloud. '
+                          f'Check if clouds are all detected. {weather}')
 
-    if found_wx == False:
-        print('There is a Problem '+ weather + ' is not a Weather...')
+    if not found_wx:
+        logging.warning(f'There is a Problem {weather} is not a Weather...')
 
     return (found_wx,
             list_wx_1,
@@ -292,10 +306,18 @@ def weather_check(metar_obj,
             status_wx_2,
             status_wx_3)
 
-def temp_tau_check(metar_obj,temp_status,temp_list,dew_point_list,temp_idx):
+def temp_tau_check(metar_obj:str,
+                   temp_status:int,
+                   temp_list:list,
+                   dew_point_list:list,
+                   temp_idx:int
+                   ) -> tuple[bool,int,list[str],list[str]]:
 
-    ''' This Function checks if there is any Temperature or Dewpoint values and if the are some values, it will add to
-    the temperature and dewpoint list'''
+    """
+    This Function checks if there is any Temperature or Dewpoint values
+    and if the are some values, it will add to
+    the temperature and dewpoint list
+    """
 
     #Struture : 00/00 or M01/M07
     temp_tau = metar_obj.replace(' ','')
@@ -317,11 +339,14 @@ def temp_tau_check(metar_obj,temp_status,temp_list,dew_point_list,temp_idx):
             temp_list,
             dew_point_list)
 
-def Parse_Metar(metar_list):
+def parse_metar(metar_list:list) -> xr.Dataset:
     # INITS
 
-    '''This function using the METAR list to get the weather observation, divide it into different parts and save the
-    parts into a file. This contains all the Metar-Information'''
+    """
+    This function using the METAR list to get the weather observation,
+    divide it into different parts and save the
+    parts into a file. This contains all the Metar-Information
+    """
 
     wind_unit = ['KT', 'MPS', 'KMH']
     pressure_unit = ['Q']
@@ -391,16 +416,19 @@ def Parse_Metar(metar_list):
         #print(metar)
 
         if 'AUTO' in metar:
-            #Automatic Stations can't observe everything, often the structure differs compared to human generated
+            #Automatic Stations can't observe everything,
+            # often the structure differs compared to human generated
             # - Parser need to be adjust
             auto_mode = True
         for unit in wind_unit:
-            #Some Nations use different windspeed-units. We use the shortcuts to find the wind parameter
+            #Some Nations use different windspeed-units.
+            # We use the shortcuts to find the wind parameter
             if unit in metar:
                 wind_mode = unit
                 break
         if 'CAVOK' in metar:
-            #"CAVOK is special, cause Visibility, Cloudiness, Weather are described by this word and the structure of
+            #"CAVOK is special, cause Visibility, Cloudiness,
+            # Weather are described by this word and the structure of
             # the Metar differs by using from typical structures.
             cavok_mode = True
 
@@ -415,7 +443,7 @@ def Parse_Metar(metar_list):
 
                 idx_list.append(idx)
 
-                print(metar[latest_idx:idx])
+                #print(metar[latest_idx:idx])
 
                 #Windgroupe
 
@@ -424,7 +452,8 @@ def Parse_Metar(metar_list):
                     got_wind = idx
 
                     if 'V' in metar[got_wind:got_wind+5]:
-                        if 'CAVOK' in metar[got_wind:got_wind + 6] or 'VV' in metar[got_wind:got_wind + 6]:
+                        if 'CAVOK' in metar[got_wind:got_wind + 6] or \
+                                'VV' in metar[got_wind:got_wind + 6]:
                             var_wind_list.append('-99V-99')
                             got_wind_var = idx
                         else:
@@ -434,11 +463,11 @@ def Parse_Metar(metar_list):
                         var_wind_list.append('-99V-99')
                         got_wind_var = idx
 
-                if cavok_mode == True:
-                    #CAVOK means no clouds, Vis over 10km, No Weather and no special clouds...
-                    if (got_wind>0
-                        and got_vis<0
-                        and idx != got_wind_var
+                if cavok_mode:
+                    #CAVOK means no clouds, Vis over 10km,
+                    # No Weather and no special clouds...
+                    if (got_wind > 0 > got_vis
+                            and idx != got_wind_var
                         and idx != got_wind):
                         #Adjust Parser
 
@@ -471,7 +500,7 @@ def Parse_Metar(metar_list):
                                                                           got_vis_min,
                                                                           idx,
                                                                           auto_mode)
-                            if found_vis == True:
+                            if found_vis:
                                 if got_vis_min < 0 :
                                     vis_list.append(vis)
                                 elif got_vis_min > 0 :
@@ -490,7 +519,7 @@ def Parse_Metar(metar_list):
                                                   sig_weather_list,
                                                   sig_weather_list_2,
                                                   sig_weather_list_3)
-                                    if found_wx == True:
+                                    if found_wx:
                                         if got_vis_min < 0:
                                             vis_min_list.append('-999')
                                             got_vis_min = idx
@@ -504,7 +533,7 @@ def Parse_Metar(metar_list):
                                                     cloud_list_2,
                                                     cloud_list_3,
                                                     special_cloud_list)
-                                        if found_cloud == True:
+                                        if found_cloud:
                                             if got_sig_weather < 0:
                                                 sig_weather_list.append('NO WX')
                                                 got_sig_weather = idx
@@ -524,7 +553,7 @@ def Parse_Metar(metar_list):
                                                                              got_vis_min,
                                                                              idx,
                                                                              auto_mode)
-                            if found_vis == True:
+                            if found_vis:
                                 got_vis_min = idx
                                 vis_min_list.append(vis)
                             else:
@@ -540,7 +569,7 @@ def Parse_Metar(metar_list):
                                                       sig_weather_list,
                                                       sig_weather_list_2,
                                                       sig_weather_list_3)
-                                    if found_wx == True:
+                                    if found_wx:
                                         if got_vis_min < 0:
                                             vis_min_list.append('-999')
                                             got_vis_min = idx
@@ -554,7 +583,7 @@ def Parse_Metar(metar_list):
                                                         cloud_list_2,
                                                         cloud_list_3,
                                                         special_cloud_list)
-                                        if found_cloud == True:
+                                        if found_cloud:
                                             if got_sig_weather < 0:
                                                 sig_weather_list.append('NO WX')
                                                 got_sig_weather = idx
@@ -580,7 +609,7 @@ def Parse_Metar(metar_list):
                                                sig_weather_list,
                                                sig_weather_list_2,
                                                sig_weather_list_3)
-                                if found_wx == True:
+                                if found_wx:
                                     if got_vis_min < 0:
                                         vis_min_list.append('-999')
                                         got_vis_min = idx
@@ -594,7 +623,7 @@ def Parse_Metar(metar_list):
                                                     cloud_list_2,
                                                     cloud_list_3,
                                                     special_cloud_list)
-                                    if found_cloud == True:
+                                    if found_cloud:
                                         if got_sig_weather < 0:
                                             sig_weather_list.append('NO WX')
                                             got_sig_weather = idx
@@ -617,7 +646,7 @@ def Parse_Metar(metar_list):
                                 cloud_list_2,
                                 cloud_list_3,
                                 special_cloud_list)
-                    if found_cloud == True:
+                    if found_cloud:
                         if got_sig_weather < 0:
                             sig_weather_list.append('NO WX')
                             got_sig_weather = idx
@@ -638,7 +667,7 @@ def Parse_Metar(metar_list):
                                     cloud_list_2,
                                     cloud_list_3,
                                     special_cloud_list)
-                    if found_cloud == False:
+                    if not found_cloud:
                         found_temp, got_temp, temperature_list, dewpoint_list = \
                             temp_tau_check(
                                 metar[latest_idx:idx],
@@ -647,7 +676,7 @@ def Parse_Metar(metar_list):
                                 dewpoint_list,
                                 idx
                             )
-                        if found_temp == True and got_temp < 0:
+                        if found_temp and got_temp < 0:
                             if got_cloud_1 < 0:
                                 cloud_list_1.append('NIL')
                                 got_cloud_1 = idx
@@ -670,7 +699,7 @@ def Parse_Metar(metar_list):
                                  cloud_list_2,
                                  cloud_list_3,
                                  special_cloud_list)
-                    if found_cloud == False and got_temp < 0:
+                    if not found_cloud and got_temp < 0:
                         found_temp, got_temp, temperature_list, dewpoint_list = \
                             temp_tau_check(
                                 metar[latest_idx:idx],
@@ -702,7 +731,7 @@ def Parse_Metar(metar_list):
                                     cloud_list_2,
                                     cloud_list_3,
                                     special_cloud_list)
-                    if found_cloud == False and got_temp < 0:
+                    if not found_cloud and got_temp < 0:
                         found_temp, got_temp, temperature_list, dewpoint_list = \
                             temp_tau_check(
                                 metar[latest_idx:idx],
@@ -711,7 +740,7 @@ def Parse_Metar(metar_list):
                                 dewpoint_list,
                                 idx
                             )
-                        if found_temp == True:
+                        if found_temp:
                             if got_cloud_1 < 0:
                                 cloud_list_1.append('NIL')
                                 got_cloud_1 = idx
@@ -734,7 +763,7 @@ def Parse_Metar(metar_list):
                                 dewpoint_list,
                                 idx
                             )
-                        if found_temp == True:
+                        if found_temp:
                             if got_cloud_1 < 0:
                                 cloud_list_1.append('NIL')
                                 got_cloud_1 = idx
@@ -762,7 +791,18 @@ def Parse_Metar(metar_list):
                 latest_idx = idx
 
         if got_temp > 0 and got_pressure <0:
-            print(metar[latest_idx:idx])
+            for pressure in pressure_unit:
+                if (pressure in metar[latest_idx:idx] and
+                        metar[latest_idx:idx] not in wx_unit):
+                        if '=' in metar[latest_idx:idx]:
+                            pressure_list.append(metar[latest_idx:idx].replace('=', ''))
+                            got_pressure = idx
+
+                            trend_list.append('NIL')
+                            got_trend = idx
+
+
+            #print(metar[latest_idx:idx])
 
         #End of METAR
         if got_wind_var<0:
@@ -805,48 +845,55 @@ def Parse_Metar(metar_list):
         got_pressure = -99
         got_trend = -99
 
-    print(len(wind_list))
-    print(len(date_list))
-    print(len(var_wind_list))
-    print(len(vis_list))
-    print(len(vis_min_list))
-    print(len(sig_weather_list))
-    print(len(sig_weather_list_2))
-    print(len(sig_weather_list_3))
+    logging.info('#### Info Parse-Metar #### ')
+    logging.info(f'Lines of Time/Date : {len(date_list)}')
+    logging.info(f'Lines of Wind : {len(wind_list)}')
+    logging.info(f'Lines of variation Winds : {len(var_wind_list)}')
+    logging.info(f'Lines of visibility : {len(vis_list)}')
+    logging.info(f'Lines of visibility_min: {len(vis_min_list)}')
+    logging.info(f'Lines of sig weather : {len(sig_weather_list)}')
+    logging.info(f'Lines of sig_weather_2: {len(sig_weather_list_2)}')
+    logging.info(f'Lines of sig_weather_3: {len(sig_weather_list_3)}')
+    logging.info(f'Lines of Clouds lev1: {len(cloud_list_1)}')
+    logging.info(f'Lines of Clouds lev2 : {len(cloud_list_2)}')
+    logging.info(f'Lines of Clouds lev3 : {len(cloud_list_3)}')
+    logging.info(f'Lines of Special Clouds : {len(special_cloud_list)}')
+    logging.info(f'Lines of temperature : {len(temperature_list)}')
+    logging.info(f'Lines of dewpoint : {len(dewpoint_list)}')
+    logging.info(f'Lines of pressure : {len(pressure_list)}')
+    logging.info(f'Lines of trend : {len(trend_list)}')
+    logging.info('#### Ende Log #### ')
 
-    print(len(cloud_list_1))
-    print(cloud_list_1)
-    print(len(cloud_list_2))
-    print(cloud_list_2)
-    print(len(cloud_list_3))
-    print(cloud_list_3)
-    print(len(special_cloud_list))
-    print(special_cloud_list)
-    print(len(temperature_list))
-    print(temperature_list)
-    print(len(dewpoint_list))
-    print(dewpoint_list)
-    print(len(pressure_list))
-    print(pressure_list)
-    print(len(trend_list))
-    print(trend_list)
-
-
-    da_wind = xr.DataArray(wind_list, coords=dict(date=date_list),name='windspeed and direction')
-    da_wind_var = xr.DataArray(var_wind_list, coords=dict(date=date_list),name='windvariation')
-    da_vis = xr.DataArray(vis_list, coords=dict(date=date_list),name='visibility')
-    da_vis_min = xr.DataArray(vis_min_list, coords=dict(date=date_list),name='visibility min')
-    da_sig_weather_1 = xr.DataArray(sig_weather_list, coords=dict(date=date_list),name='significant weather')
-    da_sig_weather_2 = xr.DataArray(sig_weather_list_2, coords=dict(date=date_list),name='significant weather 2')
-    da_sig_weather_3 = xr.DataArray(sig_weather_list_3, coords=dict(date=date_list),name='significant weather 3')
-    da_cloud_1 = xr.DataArray(cloud_list_1, coords=dict(date=date_list),name='cloud level 1')
-    da_cloud_2 = xr.DataArray(cloud_list_2, coords=dict(date=date_list),name='cloud level 2')
-    da_cloud_3 = xr.DataArray(cloud_list_3, coords=dict(date=date_list),name='cloud level 3')
-    da_sig_cloud = xr.DataArray(special_cloud_list, coords=dict(date=date_list),name='significant cloud')
-    da_temperature = xr.DataArray(temperature_list, coords=dict(date=date_list),name='temperature')
-    da_dewpoint = xr.DataArray(dewpoint_list, coords=dict(date=date_list),name='dewpoint')
-    da_pressure = xr.DataArray(pressure_list, coords=dict(date=date_list),name='pressure')
-    da_trend = xr.DataArray(trend_list, coords=dict(date=date_list),name='trend')
+    da_wind = xr.DataArray(wind_list, coords=dict(date=date_list),
+                           name='windspeed and direction')
+    da_wind_var = xr.DataArray(var_wind_list, coords=dict(date=date_list),
+                               name='windvariation')
+    da_vis = xr.DataArray(vis_list, coords=dict(date=date_list),
+                          name='visibility')
+    da_vis_min = xr.DataArray(vis_min_list, coords=dict(date=date_list),
+                              name='visibility min')
+    da_sig_weather_1 = xr.DataArray(sig_weather_list, coords=dict(date=date_list),
+                                    name='significant weather')
+    da_sig_weather_2 = xr.DataArray(sig_weather_list_2, coords=dict(date=date_list),
+                                    name='significant weather 2')
+    da_sig_weather_3 = xr.DataArray(sig_weather_list_3, coords=dict(date=date_list),
+                                    name='significant weather 3')
+    da_cloud_1 = xr.DataArray(cloud_list_1, coords=dict(date=date_list),
+                              name='cloud level 1')
+    da_cloud_2 = xr.DataArray(cloud_list_2, coords=dict(date=date_list),
+                              name='cloud level 2')
+    da_cloud_3 = xr.DataArray(cloud_list_3, coords=dict(date=date_list),
+                              name='cloud level 3')
+    da_sig_cloud = xr.DataArray(special_cloud_list, coords=dict(date=date_list),
+                                name='significant cloud')
+    da_temperature = xr.DataArray(temperature_list, coords=dict(date=date_list),
+                                  name='temperature')
+    da_dewpoint = xr.DataArray(dewpoint_list, coords=dict(date=date_list),
+                               name='dewpoint')
+    da_pressure = xr.DataArray(pressure_list, coords=dict(date=date_list),
+                               name='pressure')
+    da_trend = xr.DataArray(trend_list, coords=dict(date=date_list),
+                            name='trend')
 
     ds_wind = da_wind.to_dataset(name='windspeed_direction')
     ds_wind_var = da_wind_var.to_dataset(name='windvariation')
@@ -881,7 +928,7 @@ def Parse_Metar(metar_list):
 
     return ds_all
 
-def Parse_Taf(flugplatz, taf_list):
+def parse_taf(id:str, taf_list:list) -> None :
 
     latest = 0
 
@@ -894,6 +941,14 @@ def Parse_Taf(flugplatz, taf_list):
     taf_cloud_base_idx = -99
     taf_vis_base_idx = -99
     taf_sig_weather_base_idx = -99
+
+    taf_change_type_idx = -99
+    taf_change_time_idx = -99
+    taf_cloud_change_type_idx = -99
+    taf_wind_change_type_idx = -99
+    taf_vis_change_type_idx = -99
+    taf_sig_weather_change_type_idx = -99
+
 
 
     changing_groups = ['TEMPO','BECMG','FM']
@@ -913,7 +968,8 @@ def Parse_Taf(flugplatz, taf_list):
     base_sig_weather_list = []
     base_cloud_list = []
 
-    time_change = []
+    change_time_list = []
+    change_type_list = []
     change_wind_list = []
     change_vis_list = []
     change_sig_weather_list = []
@@ -925,16 +981,21 @@ def Parse_Taf(flugplatz, taf_list):
             taf = taf.replace('/n','')
 
         print(taf)
-        print('Analyse')
+        logging.info('Start TAF-Analyse')
 
         for idx in range(0,len(taf)):
-            if ' ' in taf[idx]:                         #Divide it into Parts
-                if len(taf[latest:idx])>1:              #Show only Parts with length >0 (filter artefacts)
-                    if flugplatz in taf[latest:idx]:    #If the ICAO part of the TAF -> Base
+            # Divide it into Parts
+            if ' ' in taf[idx]:
+                # Show only Parts with length >0 (filter artefacts)
+                if len(taf[latest:idx])>1:
+                    # If the ICAO part of the TAF -> Base
+                    if id in taf[latest:idx]:
                         taf_base = True
                         taf_base_idx = idx
-
-                    if taf_base == True:
+                    for change in changing_groups:
+                        if change in taf[latest:idx]:
+                            taf_base = False
+                    if taf_base:
                         if (taf_forecast_idx < 0
                             and 'Z' in taf[latest:idx]
                             and idx != taf_base_idx):
@@ -955,75 +1016,724 @@ def Parse_Taf(flugplatz, taf_list):
                             and taf_wind_base_idx < 0:
                             #Structure dirffGfxKT (direction,strength,gusts,Unit)
                                 base_wind_list.append(taf[latest:idx])
+                                taf_wind_base_idx = idx
 
+                        if (taf_wind_base_idx > 0
+                            and idx != taf_wind_base_idx
+                            and taf_sig_weather_base_idx < 0):
+                                if taf[latest:idx] in wx_unit:
+                                    base_sig_weather_list.append(taf[latest:idx])
+                                    taf_sig_weather_base_idx = idx
+                                else:
+                                    if taf_vis_base_idx < 0:
+                                        base_visibility_list.append(taf[latest:idx])
+                                        taf_vis_base_idx = idx
+                                    elif (taf_cloud_base_idx < 0
+                                          and taf[latest:idx] in cloud_unit):
+                                        base_cloud_list.append(taf[latest:idx])
+                                        taf_cloud_base_idx = idx
 
+                        if taf_sig_weather_base_idx < 0 and taf_vis_base_idx > 0:
+                            base_sig_weather_list.append('NO WX')
+                            taf_sig_weather_base_idx = idx
 
+                        #if taf_sig_weather_base_idx > 0 and taf_cloud_base_idx > 0:
+                        #    print(taf[latest:idx])
+                    else:
+                        if taf_change_type_idx < 0 :
+                            for change in changing_groups:
+                                if change in taf[latest:idx]:
+                                    change_type_list.append(taf[latest:idx])
+                                    taf_change_type_idx = idx
+                        elif taf_change_time_idx < 0 and taf_change_type_idx > 0 :
+                            change_time_list.append(taf[latest:idx])
+                            taf_change_time_idx = idx
+                        print(taf[latest:idx])
 
-                    print(taf[latest:idx])
                     latest = idx
                 else:
                     latest = idx
 
-        print(taf[latest:idx])
+        if taf_base and 'CAVOK' in taf[latest:idx]:
+            base_visibility_list.append(taf[latest:idx])
+            base_cloud_list.append(taf[latest:idx])
+            base_sig_weather_list.append(taf[latest:idx])
+            taf_vis_base_idx = idx
+            taf_cloud_base_idx = idx
+            taf_sig_weather_base_idx = idx
+        else:
+            for cloud in cloud_unit:
+                if taf_base and cloud in taf[latest:idx]:
+                    base_cloud_list.append(taf[latest:idx])
+                    taf_cloud_base_idx = idx
 
         taf_base_idx = -99
         taf_forecast_idx = -99
         taf_forecast_range_idx = -99
+        taf_wind_base_idx = -99
+        taf_vis_base_idx = -99
+        taf_sig_weather_base_idx = -99
+        taf_cloud_base_idx = -99
+
+        taf_change_time_idx = -99
+        taf_change_type_idx = -99
 
         latest = 0
-    print(issued_time_list)
-    print(forecast_range_list)
+
+    print(len(change_type_list))
+    print(change_type_list)
+    print(len(change_time_list))
+    print(change_time_list)
+
 
         #Structure : TAF LOCATIONID IUSSED DATE/TIMERANGE (!IMPORTANT) WIND VIS WEATHER CLOUDS
         # (Groups with changing)
         #print(taf)
 
+def parse_metar2(metar_list:list) -> xr.Dataset:
+    # INITS
+
+    """
+    This function using the METAR list to get the weather observation,
+    divide it into different parts and save the
+    parts into a file. This contains all the Metar-Information
+
+    """
+
+    wind_unit = ['KT', 'MPS', 'KMH']
+    pressure_unit = ['Q']
+    #cloud_unit = ['BKN','OVC','SCT','FEW','NSC','SKC']
+    wx_unit = ['MI','BC','PR','DR','BL','SH','TS','FZ','DZ','RA','SN','SG'
+                ,'PL','GR','GS','UP','BR','FG','FU','VA','DU','SA','HZ','PO'
+                ,'SQ','FC','SS','DS','WS','IC','PY','VC','RE']
+
+    wind_list = []
+    date_list = []
+    var_wind_list = []
+
+    vis_list = []
+    vis_min_list = []
+
+    cloud_list_1 = []
+    cloud_list_2 = []
+    cloud_list_3 = []
+    special_cloud_list = []
+
+    temperature_list = []
+    dewpoint_list = []
+
+    sig_weather_list = []
+    sig_weather_list_2 = []
+    sig_weather_list_3 = []
+
+    pressure_list = []
+    trend_list = []
+
+    auto_mode = False
+    cavok_mode = False
+    wind_mode = ''
+
+    latest_idx = 0
+    got_wind = -99
+    got_wind_var = -99
+
+    cloud_mode = 0
+
+    #Cloudlevel : # 0 : Low
+    #Cloudlevel : # 1 : Mid
+    #Cloudlevel : # 2 : High
+    #Cloudlevel : # 3 : SpecialCloud
+
+    sig_weather_mode = 0
+
+    #SigWeather : # 0 : Main (eg Precip or Obscuration)
+    #SigWeather : # 1 : 2.th state (Obscuration or VC)
+    #SigWeather : # 2 : 3.th state (Obscuration or VC)
+
+    visibility_mode = 0
+
+    #Visbility : # 0 : Prevailing
+    #Visbility : # 1 : Minimum
 
 
-# ToDo write this in a main func and use the if __name__ == '__main__':
-#  condition. Otherwise this code is executed if you want to import it elsewhere
-#  for a single file it is totally fine, but if you want to scale it makes it easier to
-#  start that way
-date = datetime.now()
-date2 = datetime.now(timezone.utc)
-print(date.strftime('%a %d %b %Y %H:%M'))
-print(date2.strftime('%a %d %b %Y %H:%M'))
+    got_temp = -99
+    got_pressure = -99
+    got_trend = -99
 
-flugplatz = 'EDDW'
-stadt = 'Bremen'
-automat = True
-year = 2025
-month = 6
-day = 7
-hour = 11
-minute = 0
-year_f = 2025
-month_f = 6
-day_f = 8
-hour_f = 9
-minute_f = 59
+    i = 0
+
+    for metar in metar_list:
+
+        # print(i,metar)
+        i = i + 1
+        # date = metar[0:13]
+        date = datetime(int(metar[0:4]),
+                        int(metar[4:6]),
+                        int(metar[6:8]),
+                        int(metar[8:10]),
+                        int(metar[10:13])
+                        )
+        date_list.append(date)
+
+        #print(metar)
+
+        if 'AUTO' in metar:
+            #Automatic Stations can't observe everything,
+            # often the structure differs compared to human generated
+            # - Parser need to be adjust
+            auto_mode = True
+        for unit in wind_unit:
+            #Some Nations use different windspeed-units.
+            # We use the shortcuts to find the wind parameter
+            if unit in metar:
+                wind_mode = unit
+                break
+        if 'CAVOK' in metar:
+            #"CAVOK is special, cause Visibility, Cloudiness,
+            # Weather are described by this word and the structure of
+            # the Metar differs by using from typical structures.
+            cavok_mode = True
+
+        idx_list = []
+
+        #Start Parsing over the metar....
+
+        for idx in range(13, len(metar)):
+            if metar[idx] == ' ':
+
+                #Spacing in METAR will change the part of the METAR and his information.
+
+                idx_list.append(idx)
+
+                #print(metar[latest_idx:idx])
+
+                #Windgroupe
+
+                if wind_mode in metar[latest_idx:idx] and got_wind < 0:
+                    wind_list.append(metar[latest_idx:idx])
+                    got_wind = idx
+
+                    if 'V' in metar[got_wind:got_wind+5]:
+                        if 'CAVOK' in metar[got_wind:got_wind + 6] or \
+                                'VV' in metar[got_wind:got_wind + 6]:
+                            var_wind_list.append('-99V-99')
+                            got_wind_var = idx
+                        else:
+                            var_wind_list.append(metar[got_wind:got_wind + 8])
+                            got_wind_var = got_wind + 8
+                    else:
+                        var_wind_list.append('-99V-99')
+                        got_wind_var = idx
+
+                if cavok_mode:
+                    #CAVOK means no clouds, Vis over 10km,
+                    # No Weather and no special clouds...
+                    if (got_wind > 0 > got_vis
+                            and idx != got_wind_var
+                        and idx != got_wind):
+                        #Adjust Parser
+
+                        vis_list.append('CAVOK')
+                        vis_min_list.append('CAVOK')
+                        cloud_list_1.append('CAVOK')
+                        cloud_list_2.append('CAVOK')
+                        cloud_list_3.append('CAVOK')
+                        special_cloud_list.append('CAVOK')
+                        sig_weather_list.append('CAVOK')
+                        sig_weather_list_2.append('CAVOK')
+                        sig_weather_list_3.append('CAVOK')
+
+                        got_vis = idx
+                        got_vis_min = idx
+
+                        got_cloud_1 = idx
+                        got_cloud_2 = idx
+                        got_cloud_3 = idx
+
+                        got_special_cloud = idx
+                        got_sig_weather = idx
+                        got_sig_weather_2 = idx
+                        got_sig_weather_3 = idx
+                else: #In Case there is no Cavok...
+                    if got_wind>0 and idx != got_wind_var and idx != got_wind:
+                        if got_vis<0 or got_vis_min<0:
+                            found_vis,vis,got_vis,got_vis_min = vis_check(metar[latest_idx:idx],
+                                                                          got_vis,
+                                                                          got_vis_min,
+                                                                          idx,
+                                                                          auto_mode)
+                            if found_vis:
+                                if got_vis_min < 0 :
+                                    vis_list.append(vis)
+                                elif got_vis_min > 0 :
+                                    vis_min_list.append(vis)
+                            else:
+                                if got_sig_weather < 0 or got_sig_weather_2 < 0 or got_sig_weather_3 < 0 :
+                                    #Test for WX:
+                                    (found_wx,sig_weather_list,sig_weather_list_2,sig_weather_list_3,
+                                    got_sig_weather, got_sig_weather_2, got_sig_weather_3) = \
+                                    weather_check(metar[latest_idx:idx],
+                                                  got_sig_weather,
+                                                  got_sig_weather_2,
+                                                  got_sig_weather_3,
+                                                  idx,
+                                                  auto_mode,
+                                                  sig_weather_list,
+                                                  sig_weather_list_2,
+                                                  sig_weather_list_3)
+                                    if found_wx:
+                                        if got_vis_min < 0:
+                                            vis_min_list.append('-999')
+                                            got_vis_min = idx
+                                    else:
+                                        (found_cloud,got_cloud_1,got_cloud_2,got_cloud_3,got_special_cloud,
+                                        cloud_list_1,cloud_list_2,cloud_list_3,special_cloud_list) = \
+                                        cloud_check(metar[latest_idx:idx],got_cloud_1,got_cloud_2,got_cloud_3,
+                                                    got_special_cloud,idx,
+                                                    auto_mode,
+                                                    cloud_list_1,
+                                                    cloud_list_2,
+                                                    cloud_list_3,
+                                                    special_cloud_list)
+                                        if found_cloud:
+                                            if got_sig_weather < 0:
+                                                sig_weather_list.append('NO WX')
+                                                got_sig_weather = idx
+                                            if got_sig_weather_2 < 0:
+                                                sig_weather_list_2.append('NO WX')
+                                                got_sig_weather_2 = idx
+                                            if got_sig_weather_3 < 0:
+                                                sig_weather_list_3.append('NO WX')
+                                                got_sig_weather_3 = idx
+                                            if got_vis_min < 0:
+                                                vis_min_list.append('-999')
+                                                got_vis_min = idx
+
+                        elif got_vis_min < 0 and got_vis > 0:
+                            found_vis, vis, got_vis, got_vis_min = vis_check(metar[latest_idx:idx],
+                                                                             got_vis,
+                                                                             got_vis_min,
+                                                                             idx,
+                                                                             auto_mode)
+                            if found_vis:
+                                got_vis_min = idx
+                                vis_min_list.append(vis)
+                            else:
+                                if got_sig_weather < 0 or got_sig_weather_2 < 0 or got_sig_weather_3 < 0:
+                                    (found_wx, sig_weather_list, sig_weather_list_2, sig_weather_list_3,
+                                     got_sig_weather, got_sig_weather_2, got_sig_weather_3) = \
+                                        weather_check(metar[latest_idx:idx],
+                                                      got_sig_weather,
+                                                      got_sig_weather_2,
+                                                      got_sig_weather_3,
+                                                      idx,
+                                                      auto_mode,
+                                                      sig_weather_list,
+                                                      sig_weather_list_2,
+                                                      sig_weather_list_3)
+                                    if found_wx:
+                                        if got_vis_min < 0:
+                                            vis_min_list.append('-999')
+                                            got_vis_min = idx
+                                    else:
+                                        (found_cloud, got_cloud_1, got_cloud_2, got_cloud_3, got_special_cloud,
+                                         cloud_list_1, cloud_list_2, cloud_list_3, special_cloud_list) = \
+                                            cloud_check(metar[latest_idx:idx], got_cloud_1, got_cloud_2, got_cloud_3,
+                                                        got_special_cloud, idx,
+                                                        auto_mode,
+                                                        cloud_list_1,
+                                                        cloud_list_2,
+                                                        cloud_list_3,
+                                                        special_cloud_list)
+                                        if found_cloud:
+                                            if got_sig_weather < 0:
+                                                sig_weather_list.append('NO WX')
+                                                got_sig_weather = idx
+                                            if got_sig_weather_2 < 0:
+                                                sig_weather_list_2.append('NO WX')
+                                                got_sig_weather_2 = idx
+                                            if got_sig_weather_3 < 0:
+                                                sig_weather_list_3.append('NO WX')
+                                                got_sig_weather_3 = idx
+                                            if got_vis_min < 0:
+                                                vis_min_list.append('-999')
+                                                got_vis_min = idx
+                        else:
+                            if got_sig_weather < 0 or got_sig_weather_2 < 0 or got_sig_weather_3 < 0:
+                                (found_wx, sig_weather_list, sig_weather_list_2, sig_weather_list_3,
+                                 got_sig_weather, got_sig_weather_2, got_sig_weather_3) = \
+                                 weather_check(metar[latest_idx:idx],
+                                               got_sig_weather,
+                                               got_sig_weather_2,
+                                               got_sig_weather_3,
+                                               idx,
+                                               auto_mode,
+                                               sig_weather_list,
+                                               sig_weather_list_2,
+                                               sig_weather_list_3)
+                                if found_wx:
+                                    if got_vis_min < 0:
+                                        vis_min_list.append('-999')
+                                        got_vis_min = idx
+                                else:
+                                    (found_cloud, got_cloud_1, got_cloud_2, got_cloud_3, got_special_cloud,
+                                     cloud_list_1, cloud_list_2, cloud_list_3, special_cloud_list) = \
+                                        cloud_check(metar[latest_idx:idx], got_cloud_1, got_cloud_2, got_cloud_3,
+                                                    got_special_cloud, idx,
+                                                    auto_mode,
+                                                    cloud_list_1,
+                                                    cloud_list_2,
+                                                    cloud_list_3,
+                                                    special_cloud_list)
+                                    if found_cloud:
+                                        if got_sig_weather < 0:
+                                            sig_weather_list.append('NO WX')
+                                            got_sig_weather = idx
+                                        if got_sig_weather_2 < 0:
+                                            sig_weather_list_2.append('NO WX')
+                                            got_sig_weather_2 = idx
+                                        if got_sig_weather_3 < 0:
+                                            sig_weather_list_3.append('NO WX')
+                                            got_sig_weather_3 = idx
+                                        if got_vis_min < 0 :
+                                            vis_min_list.append('-999')
+                                            got_vis_min = idx
+                if got_vis_min > 0 and got_sig_weather > 0 and got_vis > 0 and got_wind > 0:
+                    (found_cloud, got_cloud_1, got_cloud_2, got_cloud_3, got_special_cloud,
+                    cloud_list_1, cloud_list_2, cloud_list_3, special_cloud_list) = \
+                    cloud_check(metar[latest_idx:idx], got_cloud_1, got_cloud_2, got_cloud_3,
+                                got_special_cloud, idx,
+                                auto_mode,
+                                cloud_list_1,
+                                cloud_list_2,
+                                cloud_list_3,
+                                special_cloud_list)
+                    if found_cloud:
+                        if got_sig_weather < 0:
+                            sig_weather_list.append('NO WX')
+                            got_sig_weather = idx
+                        if got_sig_weather_2 < 0:
+                            sig_weather_list_2.append('NO WX')
+                            got_sig_weather_2 = idx
+                        if got_sig_weather_3 < 0:
+                            sig_weather_list_3.append('NO WX')
+                            got_sig_weather_3 = idx
+
+                if got_cloud_1 > 0 and idx != got_cloud_1:
+                    (found_cloud, got_cloud_1, got_cloud_2, got_cloud_3, got_special_cloud,
+                     cloud_list_1, cloud_list_2, cloud_list_3, special_cloud_list) = \
+                        cloud_check(metar[latest_idx:idx], got_cloud_1, got_cloud_2, got_cloud_3,
+                                    got_special_cloud, idx,
+                                    auto_mode,
+                                    cloud_list_1,
+                                    cloud_list_2,
+                                    cloud_list_3,
+                                    special_cloud_list)
+                    if not found_cloud:
+                        found_temp, got_temp, temperature_list, dewpoint_list = \
+                            temp_tau_check(
+                                metar[latest_idx:idx],
+                                got_temp,
+                                temperature_list,
+                                dewpoint_list,
+                                idx
+                            )
+                        if found_temp and got_temp < 0:
+                            if got_cloud_1 < 0:
+                                cloud_list_1.append('NIL')
+                                got_cloud_1 = idx
+                            if got_cloud_2 < 0:
+                                cloud_list_2.append('NIL')
+                                got_cloud_2 = idx
+                            if got_cloud_3 < 0:
+                                cloud_list_3.append('NIL')
+                                got_cloud_3 = idx
+                            if got_special_cloud < 0:
+                                special_cloud_list.append('NIL')
+                                got_special_cloud = idx
+                elif got_cloud_2 > 0 and idx != got_cloud_2:
+                    (found_cloud, got_cloud_1, got_cloud_2, got_cloud_3, got_special_cloud,
+                     cloud_list_1, cloud_list_2, cloud_list_3, special_cloud_list) = \
+                     cloud_check(metar[latest_idx:idx], got_cloud_1, got_cloud_2, got_cloud_3,
+                                 got_special_cloud, idx,
+                                 auto_mode,
+                                 cloud_list_1,
+                                 cloud_list_2,
+                                 cloud_list_3,
+                                 special_cloud_list)
+                    if not found_cloud and got_temp < 0:
+                        found_temp, got_temp, temperature_list, dewpoint_list = \
+                            temp_tau_check(
+                                metar[latest_idx:idx],
+                                got_temp,
+                                temperature_list,
+                                dewpoint_list,
+                                idx
+                            )
+                        if found_temp == True:
+                            if got_cloud_1 < 0:
+                                cloud_list_1.append('NIL')
+                                got_cloud_1 = idx
+                            if got_cloud_2 < 0:
+                                cloud_list_2.append('NIL')
+                                got_cloud_2 = idx
+                            if got_cloud_3 < 0:
+                                cloud_list_3.append('NIL')
+                                got_cloud_3 = idx
+                            if got_special_cloud < 0:
+                                special_cloud_list.append('NIL')
+                                got_special_cloud = idx
+                elif got_cloud_3 > 0 and idx != got_cloud_3:
+                    (found_cloud, got_cloud_1, got_cloud_2, got_cloud_3, got_special_cloud,
+                     cloud_list_1, cloud_list_2, cloud_list_3, special_cloud_list) = \
+                        cloud_check(metar[latest_idx:idx], got_cloud_1, got_cloud_2, got_cloud_3,
+                                    got_special_cloud, idx,
+                                    auto_mode,
+                                    cloud_list_1,
+                                    cloud_list_2,
+                                    cloud_list_3,
+                                    special_cloud_list)
+                    if not found_cloud and got_temp < 0:
+                        found_temp, got_temp, temperature_list, dewpoint_list = \
+                            temp_tau_check(
+                                metar[latest_idx:idx],
+                                got_temp,
+                                temperature_list,
+                                dewpoint_list,
+                                idx
+                            )
+                        if found_temp:
+                            if got_cloud_1 < 0:
+                                cloud_list_1.append('NIL')
+                                got_cloud_1 = idx
+                            if got_cloud_2 < 0:
+                                cloud_list_2.append('NIL')
+                                got_cloud_2 = idx
+                            if got_cloud_3 < 0:
+                                cloud_list_3.append('NIL')
+                                got_cloud_3 = idx
+                            if got_special_cloud < 0:
+                                special_cloud_list.append('NIL')
+                                got_special_cloud = idx
+                else:
+                    if got_temp < 0:
+                        found_temp, got_temp, temperature_list, dewpoint_list = \
+                            temp_tau_check(
+                                metar[latest_idx:idx],
+                                got_temp,
+                                temperature_list,
+                                dewpoint_list,
+                                idx
+                            )
+                        if found_temp:
+                            if got_cloud_1 < 0:
+                                cloud_list_1.append('NIL')
+                                got_cloud_1 = idx
+                            if got_cloud_2 < 0:
+                                cloud_list_2.append('NIL')
+                                got_cloud_2 = idx
+                            if got_cloud_3 < 0:
+                                cloud_list_3.append('NIL')
+                                got_cloud_3 = idx
+                            if got_special_cloud < 0:
+                                special_cloud_list.append('NIL')
+                                got_special_cloud = idx
+
+                if got_temp > 0 and idx != got_temp:
+                    for pressure in pressure_unit:
+                        if pressure in metar[latest_idx:idx] and metar[latest_idx:idx] not in wx_unit:
+                            pressure_list.append(metar[latest_idx:idx])
+                            got_pressure = idx
+
+                if got_pressure > 0 and idx != got_pressure and got_trend < 0:
+                    trend_list.append(metar[latest_idx:-2])
+                    got_trend = idx
+
+                #End of Sort
+                latest_idx = idx
+
+        if got_temp > 0 and got_pressure <0:
+            for pressure in pressure_unit:
+                if (pressure in metar[latest_idx:idx] and
+                        metar[latest_idx:idx] not in wx_unit):
+                        if '=' in metar[latest_idx:idx]:
+                            pressure_list.append(metar[latest_idx:idx].replace('=', ''))
+                            got_pressure = idx
+
+                            trend_list.append('NIL')
+                            got_trend = idx
 
 
+            #print(metar[latest_idx:idx])
+
+        #End of METAR
+        if got_wind_var<0:
+            var_wind_list.append('-99V-99')
+        if got_cloud_1<0:
+            cloud_list_1.append('NIL')
+        if got_cloud_2<0:
+            cloud_list_2.append('NIL')
+        if got_cloud_3<0:
+            cloud_list_3.append('NIL')
+        if got_special_cloud<0:
+            special_cloud_list.append('NIL')
+        if got_sig_weather<0:
+            sig_weather_list.append('NIL')
+        if got_sig_weather_2<0:
+            sig_weather_list_2.append('NIL')
+        if got_sig_weather_3<0:
+            sig_weather_list_3.append('NIL')
+        if got_pressure<0:
+            pressure_list.append('QNIL')
+        if got_trend<0:
+            trend_list.append('NIL')
+
+        auto_mode = False
+        cavok_mode = False
+        wind_mode = ''
+        latest_idx = 0
+        got_wind = -99
+        got_wind_var = -99
+        got_cloud_1 = -99
+        got_cloud_2 = -99
+        got_cloud_3 = -99
+        got_special_cloud = -99
+        got_sig_weather = -99
+        got_sig_weather_2 = -99
+        got_sig_weather_3 = -99
+        got_vis = -99
+        got_vis_min = -99
+        got_temp = -99
+        got_pressure = -99
+        got_trend = -99
+
+    logging.info('#### Info Parse-Metar #### ')
+    logging.info(f'Lines of Time/Date : {len(date_list)}')
+    logging.info(f'Lines of Wind : {len(wind_list)}')
+    logging.info(f'Lines of variation Winds : {len(var_wind_list)}')
+    logging.info(f'Lines of visibility : {len(vis_list)}')
+    logging.info(f'Lines of visibility_min: {len(vis_min_list)}')
+    logging.info(f'Lines of sig weather : {len(sig_weather_list)}')
+    logging.info(f'Lines of sig_weather_2: {len(sig_weather_list_2)}')
+    logging.info(f'Lines of sig_weather_3: {len(sig_weather_list_3)}')
+    logging.info(f'Lines of Clouds lev1: {len(cloud_list_1)}')
+    logging.info(f'Lines of Clouds lev2 : {len(cloud_list_2)}')
+    logging.info(f'Lines of Clouds lev3 : {len(cloud_list_3)}')
+    logging.info(f'Lines of Special Clouds : {len(special_cloud_list)}')
+    logging.info(f'Lines of temperature : {len(temperature_list)}')
+    logging.info(f'Lines of dewpoint : {len(dewpoint_list)}')
+    logging.info(f'Lines of pressure : {len(pressure_list)}')
+    logging.info(f'Lines of trend : {len(trend_list)}')
+    logging.info('#### Ende Log #### ')
+
+    da_wind = xr.DataArray(wind_list, coords=dict(date=date_list),
+                           name='windspeed and direction')
+    da_wind_var = xr.DataArray(var_wind_list, coords=dict(date=date_list),
+                               name='windvariation')
+    da_vis = xr.DataArray(vis_list, coords=dict(date=date_list),
+                          name='visibility')
+    da_vis_min = xr.DataArray(vis_min_list, coords=dict(date=date_list),
+                              name='visibility min')
+    da_sig_weather_1 = xr.DataArray(sig_weather_list, coords=dict(date=date_list),
+                                    name='significant weather')
+    da_sig_weather_2 = xr.DataArray(sig_weather_list_2, coords=dict(date=date_list),
+                                    name='significant weather 2')
+    da_sig_weather_3 = xr.DataArray(sig_weather_list_3, coords=dict(date=date_list),
+                                    name='significant weather 3')
+    da_cloud_1 = xr.DataArray(cloud_list_1, coords=dict(date=date_list),
+                              name='cloud level 1')
+    da_cloud_2 = xr.DataArray(cloud_list_2, coords=dict(date=date_list),
+                              name='cloud level 2')
+    da_cloud_3 = xr.DataArray(cloud_list_3, coords=dict(date=date_list),
+                              name='cloud level 3')
+    da_sig_cloud = xr.DataArray(special_cloud_list, coords=dict(date=date_list),
+                                name='significant cloud')
+    da_temperature = xr.DataArray(temperature_list, coords=dict(date=date_list),
+                                  name='temperature')
+    da_dewpoint = xr.DataArray(dewpoint_list, coords=dict(date=date_list),
+                               name='dewpoint')
+    da_pressure = xr.DataArray(pressure_list, coords=dict(date=date_list),
+                               name='pressure')
+    da_trend = xr.DataArray(trend_list, coords=dict(date=date_list),
+                            name='trend')
+
+    ds_wind = da_wind.to_dataset(name='windspeed_direction')
+    ds_wind_var = da_wind_var.to_dataset(name='windvariation')
+    ds_vis = da_vis.to_dataset(name='visibility')
+    ds_vis_min = da_vis_min.to_dataset(name='visibility_min')
+    ds_sig_weather_1 = da_sig_weather_1.to_dataset(name='significant_weather')
+    ds_sig_weather_2 = da_sig_weather_2.to_dataset(name='significant_weather_2')
+    ds_sig_weather_3 = da_sig_weather_3.to_dataset(name='significant_weather_3')
+    ds_cloud_1 = da_cloud_1.to_dataset(name='cloud_level_1')
+    ds_cloud_2 = da_cloud_2.to_dataset(name='cloud_level_2')
+    ds_cloud_3 = da_cloud_3.to_dataset(name='cloud_level_3')
+    ds_sig_cloud = da_sig_cloud.to_dataset(name='significant_cloud')
+    ds_temperature = da_temperature.to_dataset(name='temperature')
+    ds_dewpoint = da_dewpoint.to_dataset(name='dewpoint')
+    ds_pressure = da_pressure.to_dataset(name='pressure')
+    ds_trend = da_trend.to_dataset(name='trend')
+
+    ds_all = ds_wind.merge(ds_wind_var)
+    ds_all = ds_all.merge(ds_vis)
+    ds_all = ds_all.merge(ds_vis_min)
+    ds_all = ds_all.merge(ds_sig_weather_1)
+    ds_all = ds_all.merge(ds_sig_weather_2)
+    ds_all = ds_all.merge(ds_sig_weather_3)
+    ds_all = ds_all.merge(ds_cloud_1)
+    ds_all = ds_all.merge(ds_cloud_2)
+    ds_all = ds_all.merge(ds_cloud_3)
+    ds_all = ds_all.merge(ds_sig_cloud)
+    ds_all = ds_all.merge(ds_temperature)
+    ds_all = ds_all.merge(ds_dewpoint)
+    ds_all = ds_all.merge(ds_pressure)
+    ds_all = ds_all.merge(ds_trend)
+
+    return ds_all
+
+if __name__ == '__main__':
+    date = datetime.now()
+    date2 = datetime.now(timezone.utc)
+
+    print(date.strftime('%a %d %b %Y %H:%M'))
+    print(date2.strftime('%a %d %b %Y %H:%M'))
+
+    flugplatz = 'EDDW'
+    stadt = 'Bremen'
+    automat = True
+
+    year = 2025
+    month = 6
+    day = 7
+    hour = 11
+    minute = 0
+
+    year_f = 2025
+    month_f = 6
+    day_f = 8
+    hour_f = 9
+    minute_f = 59
+
+    url = generate_request(flugplatz,stadt,automat,
+                           year,month,day,hour,minute,
+                           year_f,month_f,day_f,hour_f,minute_f
+                           )
+
+    path = get_file(url,flugplatz,
+                    year,month,day,hour,minute,
+                    year_f,month_f,day_f,hour_f,minute_f
+                    )
+
+    metar,taf = gen_metar_from_file(path)
+
+    dataset = parse_metar(metar)
+
+    pre,ext = os.path.splitext(path)
+    dataset.to_netcdf(pre+'.nc')
+
+    parse_taf(flugplatz,taf)
 
 
-url = Generate_request(flugplatz,stadt,automat,
-                       year,month,day,hour,minute,
-                       year_f,month_f,day_f,hour_f,minute_f
-                       )
-
-path = Get_file(url,flugplatz,
-                year,month,day,hour,minute,
-                year_f,month_f,day_f,hour_f,minute_f
-                )
-metar,taf = Gen_Metar_from_file(path)
-
-#dataset = Parse_Metar(metar)
-
-#pre,ext = os.path.splitext(path)
-#dataset.to_netcdf(pre+'.nc')
-
-Parse_Taf(flugplatz,taf)
-
+######################
 # FX,FF,DD
 # DD > 60° wenn ff >= 5 KT
 # FF >= 5 KT
